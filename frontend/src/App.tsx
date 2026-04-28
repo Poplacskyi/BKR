@@ -2,6 +2,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { LoginPage } from "./pages/LoginPage";
 import { RegisterPage } from "./pages/RegisterPage";
+import { HomePage } from "./pages/HomePage"; // <--- Додали імпорт нашої нової сторінки
 
 function App() {
   return (
@@ -11,24 +12,8 @@ function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
 
-        {/* Приклад захищеної сторінки, куди ми потрапляємо після логіну */}
-        <Route
-          path="/dashboard"
-          element={
-            <div style={{ padding: "20px" }}>
-              <h1>Головна панель</h1>
-              <p>Ви успішно авторизувалися!</p>
-              <button
-                onClick={() => {
-                  localStorage.removeItem("token");
-                  window.location.href = "/login";
-                }}
-              >
-                Вийти
-              </button>
-            </div>
-          }
-        />
+        {/* Замінили стару заглушку на ПОТУЖНУ головну панель */}
+        <Route path="/dashboard" element={<HomePage />} />
       </Routes>
     </BrowserRouter>
   );
