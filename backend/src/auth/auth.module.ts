@@ -18,7 +18,8 @@ import { UsersModule } from 'src/users/users.module';
       inject: [ConfigService],
       useFactory: async (configService: ConfigService) => ({
         // Беремо ключ з .env, а якщо його там немає - використовуємо запасний
-        secret: configService.get<string>('JWT_SECRET_KEY'),
+        secret:
+          configService.get<string>('JWT_SECRET_KEY') || 'super-secret-key',
         signOptions: { expiresIn: '1h' },
       }),
     }),

@@ -1,285 +1,382 @@
 // src/pages/HomePage.tsx
 import React from "react";
-import { useNavigate } from "react-router-dom";
+import {
+  Search,
+  Plus,
+  TrendingUp,
+  ChevronRight,
+  ArrowUpRight,
+} from "lucide-react";
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
+import { Sidebar } from "../components/Sidebar";
+
+// --- ДАНІ ДЛЯ ВІЗУАЛІЗАЦІЇ ---
+const salesData = [
+  { name: "01 Трав", revenue: 40 },
+  { name: "05 Трав", revenue: 55 },
+  { name: "10 Трав", revenue: 48 },
+  { name: "15 Трав", revenue: 85 },
+  { name: "20 Трав", revenue: 72 },
+  { name: "25 Трав", revenue: 110 },
+  { name: "30 Трав", revenue: 105 },
+];
+
+const lowStockAlerts = [
+  { id: 1, name: "Кава в зернах (Арабіка)", stock: 2, threshold: 10 },
+  { id: 2, name: "Сироп Карамельний 1л", stock: 5, threshold: 15 },
+  { id: 3, name: "Стаканчики 250мл", stock: 120, threshold: 500 },
+];
+
+const topProducts = [
+  {
+    id: 1,
+    name: "Еспресо суміш №1",
+    sales: 245,
+    revenue: "₴ 49,000",
+    stock: 80,
+  },
+  {
+    id: 2,
+    name: "Капучино стандарт",
+    sales: 190,
+    revenue: "₴ 15,000",
+    stock: 45,
+  },
+  {
+    id: 3,
+    name: "Круасан класичний",
+    sales: 156,
+    revenue: "₴ 12,000",
+    stock: 60,
+  },
+  {
+    id: 4,
+    name: "Чай зелений листовий",
+    sales: 120,
+    revenue: "₴ 8,400",
+    stock: 20,
+  },
+  { id: 5, name: "Молоко 2.5%", sales: 98, revenue: "₴ 3,900", stock: 15 },
+];
+
+const activityFeed = [
+  {
+    id: 1,
+    user: "Анна С.",
+    action: "створила накладну",
+    item: "№INV-2026",
+    time: "10 хв тому",
+  },
+  {
+    id: 2,
+    user: "Система",
+    action: "сформувала звіт",
+    item: "За місяць",
+    time: "1 год тому",
+  },
+  {
+    id: 3,
+    user: "Олег М.",
+    action: "прийняв товар",
+    item: "Від постачальника 'Кавовий Дім'",
+    time: "3 год тому",
+  },
+];
 
 export const HomePage: React.FC = () => {
-  const navigate = useNavigate();
-
-  const handleLogout = () => {
-    // Знищуємо токен і повертаємося на кордон (сторінку логіну)
-    localStorage.removeItem("token");
-    navigate("/login");
-  };
-
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,_#1a1a1a_0%,_#000000_100%)] text-slate-200 font-sans selection:bg-red-900/50">
-      {/* ВЕРХНЯ ПАНЕЛЬ (Навігація) */}
-      <header className="sticky top-0 z-50 bg-[#050505]/80 backdrop-blur-md border-b border-[#2a2a2a] shadow-[0_4px_30px_rgba(0,0,0,0.5)]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
-          {/* Логотип */}
+    <div className="flex h-screen bg-gray-50 text-gray-900 font-sans overflow-hidden selection:bg-emerald-100 selection:text-emerald-900">
+      <Sidebar />
+
+      {/* --- ГОЛОВНИЙ КОНТЕНТ --- */}
+      <main className="flex-1 flex flex-col h-screen overflow-y-auto z-10 relative">
+        {/* ВЕРХНЯ ПАНЕЛЬ (HEADER) */}
+        <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-gray-200 px-8 py-4 flex justify-between items-center">
+          <div className="relative w-96 group">
+            <Search
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+              size={18}
+            />
+            <input
+              type="text"
+              placeholder="Пошук..."
+              className="w-full bg-gray-50 border border-gray-200 text-gray-900 rounded-lg py-2 pl-10 pr-4 text-sm focus:outline-none focus:border-emerald-700 focus:ring-1 focus:ring-emerald-700 transition-colors"
+            />
+          </div>
+
           <div className="flex items-center gap-3">
-            <svg
-              className="w-10 h-10 text-amber-500 drop-shadow-[0_0_8px_rgba(251,191,36,0.6)]"
-              viewBox="0 0 24 24"
-              fill="currentColor"
-            >
-              <path d="M12 2L10 6H6L8 10L4 14H8L10 18L12 22L14 18L16 14H20L16 10L18 6H14L12 2Z" />
-            </svg>
-            <div>
-              <h1 className="text-xl font-black text-white uppercase tracking-widest leading-none">
-                Козацька Варта
-              </h1>
-              <span className="text-[10px] text-red-500 uppercase tracking-[0.3em] font-bold">
-                Генеральний Штаб
-              </span>
-            </div>
-          </div>
-
-          {/* Кнопка Виходу */}
-          <button
-            onClick={handleLogout}
-            className="group flex items-center gap-2 px-5 py-2.5 bg-[#111] hover:bg-red-950/40 border border-[#333] hover:border-red-800 rounded-lg transition-all duration-300"
-          >
-            <span className="text-sm font-bold text-slate-400 group-hover:text-red-400 uppercase tracking-wider transition-colors">
-              Покинути Цитадель
-            </span>
-            <svg
-              className="w-5 h-5 text-slate-500 group-hover:text-red-500 transition-colors"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-              />
-            </svg>
-          </button>
-        </div>
-      </header>
-
-      {/* ГОЛОВНИЙ КОНТЕНТ */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 relative">
-        {/* Декоративні відблиски на фоні */}
-        <div className="absolute top-20 left-10 w-72 h-72 bg-red-900/10 rounded-full blur-[100px] pointer-events-none"></div>
-        <div className="absolute bottom-20 right-10 w-96 h-96 bg-amber-900/10 rounded-full blur-[120px] pointer-events-none"></div>
-
-        {/* Вітання */}
-        <div className="mb-12 relative z-10">
-          <h2 className="text-4xl sm:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white via-amber-100 to-amber-500 uppercase tracking-tight drop-shadow-lg">
-            Вітаємо, Отамане!
-          </h2>
-          <p className="mt-4 text-lg text-amber-500/70 font-medium tracking-wide border-l-4 border-red-600 pl-4">
-            Зведення по запасах та торгових операціях за сьогодні. Усі системи в
-            бойовій готовності.
-          </p>
-        </div>
-
-        {/* СТАТИСТИЧНІ КАРТКИ (Дашборд) */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12 relative z-10">
-          {/* Картка 1: Скарбниця (Продажі) */}
-          <div className="bg-[#0a0a0a] border border-[#222] hover:border-amber-500/50 rounded-2xl p-6 shadow-lg transition-all duration-300 hover:-translate-y-1 group">
-            <div className="flex justify-between items-start mb-4">
-              <div>
-                <p className="text-xs text-slate-400 uppercase tracking-widest font-bold mb-1">
-                  Золота Скарбниця
-                </p>
-                <h3 className="text-3xl font-black text-white group-hover:text-amber-400 transition-colors">
-                  ₴ 142,500
-                </h3>
-              </div>
-              <div className="p-3 bg-amber-500/10 rounded-lg text-amber-500">
-                <svg
-                  className="w-6 h-6"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                  />
-                </svg>
-              </div>
-            </div>
-            <p className="text-sm text-green-500 font-bold flex items-center gap-1">
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
-                />
-              </svg>
-              +12.5% за тиждень
-            </p>
-          </div>
-
-          {/* Картка 2: Арсенал (Управління запасами) */}
-          <div className="bg-[#0a0a0a] border border-[#222] hover:border-red-500/50 rounded-2xl p-6 shadow-lg transition-all duration-300 hover:-translate-y-1 group">
-            <div className="flex justify-between items-start mb-4">
-              <div>
-                <p className="text-xs text-slate-400 uppercase tracking-widest font-bold mb-1">
-                  Запаси на складах
-                </p>
-                <h3 className="text-3xl font-black text-white group-hover:text-red-400 transition-colors">
-                  1,248 од.
-                </h3>
-              </div>
-              <div className="p-3 bg-red-500/10 rounded-lg text-red-500">
-                <svg
-                  className="w-6 h-6"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
-                  />
-                </svg>
-              </div>
-            </div>
-            <p className="text-sm text-amber-500 font-bold flex items-center gap-1">
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-                />
-              </svg>
-              14 позицій закінчуються
-            </p>
-          </div>
-
-          {/* Картка 3: Клієнти (Побратими) */}
-          <div className="bg-[#0a0a0a] border border-[#222] hover:border-slate-400/50 rounded-2xl p-6 shadow-lg transition-all duration-300 hover:-translate-y-1 group">
-            <div className="flex justify-between items-start mb-4">
-              <div>
-                <p className="text-xs text-slate-400 uppercase tracking-widest font-bold mb-1">
-                  Активні контрагенти
-                </p>
-                <h3 className="text-3xl font-black text-white group-hover:text-slate-300 transition-colors">
-                  342
-                </h3>
-              </div>
-              <div className="p-3 bg-slate-500/10 rounded-lg text-slate-400">
-                <svg
-                  className="w-6 h-6"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
-                  />
-                </svg>
-              </div>
-            </div>
-            <p className="text-sm text-slate-500 font-bold flex items-center gap-1">
-              Стабільний приріст бази
-            </p>
-          </div>
-
-          {/* Картка 4: Стан Системи */}
-          <div className="bg-[#0a0a0a] border border-[#222] hover:border-green-500/50 rounded-2xl p-6 shadow-lg transition-all duration-300 hover:-translate-y-1 group">
-            <div className="flex justify-between items-start mb-4">
-              <div>
-                <p className="text-xs text-slate-400 uppercase tracking-widest font-bold mb-1">
-                  Бойова готовність
-                </p>
-                <h3 className="text-3xl font-black text-white group-hover:text-green-400 transition-colors">
-                  100%
-                </h3>
-              </div>
-              <div className="p-3 bg-green-500/10 rounded-lg text-green-500">
-                <svg
-                  className="w-6 h-6"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                  />
-                </svg>
-              </div>
-            </div>
-            <p className="text-sm text-green-500 font-bold flex items-center gap-1">
-              <span className="relative flex h-3 w-3 mr-1">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
-              </span>
-              Сервери стабільні
-            </p>
-          </div>
-        </div>
-
-        {/* ВЕЛИКИЙ БЛОК АНАЛІТИКИ (Заглушка для таблиці/графіка) */}
-        <div className="bg-[#050505] border border-[#222] rounded-3xl p-8 relative z-10 shadow-2xl">
-          <div className="flex justify-between items-center mb-8 border-b border-[#222] pb-6">
-            <h3 className="text-2xl font-black text-white uppercase tracking-wider flex items-center gap-3">
-              <svg
-                className="w-6 h-6 text-red-600"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-                />
-              </svg>
-              Динаміка Продажів
-            </h3>
-            <button className="px-4 py-2 border border-amber-900/50 hover:bg-amber-900/20 text-amber-500 text-sm font-bold uppercase tracking-wider rounded-lg transition-colors">
-              Завантажити Звіт
+            <button className="flex items-center gap-2 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+              Завантажити звіт
+            </button>
+            <button className="flex items-center gap-2 bg-emerald-800 hover:bg-emerald-900 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+              <Plus size={16} />
+              Новий запис
             </button>
           </div>
+        </header>
 
-          {/* Місце для майбутнього графіка */}
-          <div className="h-64 w-full flex items-center justify-center border-2 border-dashed border-[#222] rounded-xl bg-[#0a0a0a]">
-            <p className="text-slate-600 font-bold uppercase tracking-widest flex flex-col items-center gap-2">
-              <svg
-                className="w-10 h-10 text-slate-700"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="1"
-                  d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                />
-              </svg>
-              Поле для графіка аналітики
+        <div className="p-8 space-y-6 max-w-[1600px] mx-auto w-full">
+          <div className="mb-2">
+            <h2 className="text-2xl font-bold text-gray-900">Дашборд</h2>
+            <p className="text-sm text-gray-500 mt-1">
+              Огляд ключових показників за поточний період.
             </p>
+          </div>
+
+          {/* КАРТКИ ПОКАЗНИКІВ */}
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
+            <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+              <p className="text-gray-500 text-sm font-medium mb-1">
+                Загальний дохід
+              </p>
+              <h3 className="text-2xl font-bold text-gray-900">₴ 142,500</h3>
+              <p className="text-emerald-600 mt-2 flex items-center gap-1 text-xs font-medium">
+                <TrendingUp size={14} /> +12.5% з минулого місяця
+              </p>
+            </div>
+
+            <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+              <p className="text-gray-500 text-sm font-medium mb-1">
+                Замовлень сьогодні
+              </p>
+              <h3 className="text-2xl font-bold text-gray-900">42</h3>
+              <p className="text-emerald-600 mt-2 flex items-center gap-1 text-xs font-medium">
+                <ArrowUpRight size={14} /> +5 у порівнянні з вчора
+              </p>
+            </div>
+
+            <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+              <p className="text-gray-500 text-sm font-medium mb-1">
+                Товарів на складі
+              </p>
+              <h3 className="text-2xl font-bold text-gray-900">1,248 од.</h3>
+              <p className="text-gray-500 mt-2 flex items-center gap-1 text-xs font-medium">
+                Розподілено по 2 складах
+              </p>
+            </div>
+
+            <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-2 h-full bg-emerald-700"></div>
+              <p className="text-gray-500 text-sm font-medium mb-1">
+                Чистий прибуток
+              </p>
+              <h3 className="text-2xl font-bold text-emerald-800">₴ 68,400</h3>
+              <p className="text-emerald-700 mt-2 flex items-center gap-1 text-xs font-medium">
+                Рентабельність: 48%
+              </p>
+            </div>
+          </div>
+
+          {/* ГРАФІК ТА СПОВІЩЕННЯ */}
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+            {/* Графік продажів */}
+            <div className="xl:col-span-2 bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-base font-bold text-gray-900">
+                  Динаміка продажів (тис. ₴)
+                </h2>
+                <select className="bg-gray-50 border border-gray-200 text-sm text-gray-700 rounded-lg px-3 py-1.5 focus:outline-none focus:border-emerald-700">
+                  <option>Останні 30 днів</option>
+                  <option>Попередній місяць</option>
+                </select>
+              </div>
+              <div className="h-72 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart
+                    data={salesData}
+                    margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+                  >
+                    <defs>
+                      <linearGradient
+                        id="colorRevenue"
+                        x1="0"
+                        y1="0"
+                        x2="0"
+                        y2="1"
+                      >
+                        <stop
+                          offset="5%"
+                          stopColor="#065f46"
+                          stopOpacity={0.2}
+                        />
+                        <stop
+                          offset="95%"
+                          stopColor="#065f46"
+                          stopOpacity={0}
+                        />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      vertical={false}
+                      stroke="#e5e7eb"
+                    />
+                    <XAxis
+                      dataKey="name"
+                      stroke="#9ca3af"
+                      tick={{ fill: "#6b7280", fontSize: 12 }}
+                      axisLine={false}
+                      tickLine={false}
+                    />
+                    <YAxis
+                      stroke="#9ca3af"
+                      tick={{ fill: "#6b7280", fontSize: 12 }}
+                      axisLine={false}
+                      tickLine={false}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "#ffffff",
+                        borderColor: "#e5e7eb",
+                        borderRadius: "8px",
+                        boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
+                      }}
+                      itemStyle={{ color: "#065f46", fontWeight: "bold" }}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="revenue"
+                      name="Виторг"
+                      stroke="#065f46"
+                      strokeWidth={2}
+                      fillOpacity={1}
+                      fill="url(#colorRevenue)"
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            {/* Критичні залишки */}
+            <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm flex flex-col">
+              <div className="flex items-center justify-between mb-5">
+                <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
+                  Увага по запасах
+                </h2>
+                <span className="bg-red-50 text-red-600 text-xs font-bold px-2 py-1 rounded-full">
+                  3 позиції
+                </span>
+              </div>
+
+              <div className="flex-1 space-y-3">
+                {lowStockAlerts.map((alert) => (
+                  <div
+                    key={alert.id}
+                    className="border border-gray-100 rounded-lg p-3 flex justify-between items-center hover:bg-gray-50 transition-colors"
+                  >
+                    <div>
+                      <h4 className="font-medium text-gray-900 text-sm">
+                        {alert.name}
+                      </h4>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        Мінімум: {alert.threshold}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <span className="inline-flex items-center justify-center px-2.5 py-1 rounded-md bg-red-50 text-red-700 text-xs font-bold border border-red-100">
+                        {alert.stock} од.
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <button className="mt-5 w-full py-2 bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-700 rounded-lg text-sm font-medium transition-colors">
+                Сформувати замовлення
+              </button>
+            </div>
+          </div>
+
+          {/* НИЖНІЙ РЯД (Таблиця та Активність) */}
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 pb-10">
+            {/* Топ товарів */}
+            <div className="xl:col-span-2 bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+              <div className="px-6 py-5 border-b border-gray-100">
+                <h2 className="text-base font-bold text-gray-900">
+                  Популярні товари
+                </h2>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-gray-50 text-gray-500">
+                    <tr>
+                      <th className="px-6 py-3 font-medium">Товар</th>
+                      <th className="px-6 py-3 font-medium">Продано</th>
+                      <th className="px-6 py-3 font-medium">Виторг</th>
+                      <th className="px-6 py-3 font-medium">Залишок</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {topProducts.map((product) => (
+                      <tr
+                        key={product.id}
+                        className="hover:bg-gray-50 transition-colors"
+                      >
+                        <td className="px-6 py-3.5 font-medium text-gray-900">
+                          {product.name}
+                        </td>
+                        <td className="px-6 py-3.5 text-gray-600">
+                          {product.sales} од.
+                        </td>
+                        <td className="px-6 py-3.5 text-gray-900 font-medium">
+                          {product.revenue}
+                        </td>
+                        <td className="px-6 py-3.5">
+                          <div className="flex items-center gap-3">
+                            <div className="w-24 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                              <div
+                                className={`h-full rounded-full ${product.stock < 25 ? "bg-amber-500" : "bg-emerald-600"}`}
+                                style={{
+                                  width: `${Math.min(product.stock, 100)}%`,
+                                }}
+                              ></div>
+                            </div>
+                            <span className="text-xs text-gray-500 w-8">
+                              {product.stock}%
+                            </span>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Активність */}
+            <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+              <h2 className="text-base font-bold text-gray-900 mb-5">
+                Останні дії
+              </h2>
+              <div className="relative border-l border-gray-200 ml-2 space-y-6">
+                {activityFeed.map((activity) => (
+                  <div key={activity.id} className="relative pl-5">
+                    <div className="absolute -left-[5px] top-1.5 w-2 h-2 rounded-full bg-emerald-700 ring-4 ring-white"></div>
+                    <p className="text-xs text-gray-500 mb-0.5">
+                      {activity.time}
+                    </p>
+                    <p className="text-sm text-gray-900">
+                      <span className="font-medium">{activity.user}</span>{" "}
+                      {activity.action}
+                    </p>
+                    <p className="text-xs font-medium text-gray-600 mt-1">
+                      {activity.item}
+                    </p>
+                  </div>
+                ))}
+              </div>
+              <button className="mt-6 w-full flex items-center justify-center gap-1 text-gray-500 hover:text-emerald-700 text-sm font-medium transition-colors">
+                Переглянути всі <ChevronRight size={16} />
+              </button>
+            </div>
           </div>
         </div>
       </main>

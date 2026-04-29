@@ -8,12 +8,8 @@
 }
 
 body {
-  margin: 0;
-  /* Глибокий чорний фон з радіальним градієнтом, що нагадує дим або нічний степ */
-  background: radial-gradient(circle at center, #1a1a1a 0%, #000000 100%);
-  color: #e2e8f0;
-  min-height: 100vh;
-  overflow-x: hidden;
+  /* Світло-сірий фон, темно-сірий текст */
+  @apply bg-gray-50 text-gray-900 antialiased selection:bg-emerald-200 selection:text-emerald-900;
 }
 
 /* Опціонально: додамо дуже тонку текстуру сталі або старого дерева на фон */
