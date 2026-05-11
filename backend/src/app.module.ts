@@ -8,6 +8,9 @@ import { User } from './users/users.entity';
 import { ConfigModule } from '@nestjs/config';
 import { ProductsModule } from './product/products.module';
 import { Product } from './product/product.entity';
+import { SalesModule } from './sales/sales.module';
+import { Sale } from './sales/sale.entity';
+import { SaleItem } from './sales/sale-item.entity';
 
 @Module({
   imports: [
@@ -20,12 +23,13 @@ import { Product } from './product/product.entity';
       username: 'postgres',
       password: 'root',
       database: 'my_database',
-      entities: [User, Product], // Додаємо сутності користувачів та товарів
+      entities: [User, Product, Sale, SaleItem], // Додаємо сутності користувачів та товарів
       synchronize: true,
     }),
     AuthModule,
     UsersModule,
     ProductsModule,
+    SalesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

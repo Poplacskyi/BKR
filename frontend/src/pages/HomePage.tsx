@@ -1,5 +1,5 @@
 // src/pages/HomePage.tsx
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   Search,
   Plus,
@@ -17,81 +17,62 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { Sidebar } from "../components/Sidebar";
-
-// --- ДАНІ ДЛЯ ВІЗУАЛІЗАЦІЇ ---
-const salesData = [
-  { name: "01 Трав", revenue: 40 },
-  { name: "05 Трав", revenue: 55 },
-  { name: "10 Трав", revenue: 48 },
-  { name: "15 Трав", revenue: 85 },
-  { name: "20 Трав", revenue: 72 },
-  { name: "25 Трав", revenue: 110 },
-  { name: "30 Трав", revenue: 105 },
-];
-
-const lowStockAlerts = [
-  { id: 1, name: "Кава в зернах (Арабіка)", stock: 2, threshold: 10 },
-  { id: 2, name: "Сироп Карамельний 1л", stock: 5, threshold: 15 },
-  { id: 3, name: "Стаканчики 250мл", stock: 120, threshold: 500 },
-];
-
-const topProducts = [
-  {
-    id: 1,
-    name: "Еспресо суміш №1",
-    sales: 245,
-    revenue: "₴ 49,000",
-    stock: 80,
-  },
-  {
-    id: 2,
-    name: "Капучино стандарт",
-    sales: 190,
-    revenue: "₴ 15,000",
-    stock: 45,
-  },
-  {
-    id: 3,
-    name: "Круасан класичний",
-    sales: 156,
-    revenue: "₴ 12,000",
-    stock: 60,
-  },
-  {
-    id: 4,
-    name: "Чай зелений листовий",
-    sales: 120,
-    revenue: "₴ 8,400",
-    stock: 20,
-  },
-  { id: 5, name: "Молоко 2.5%", sales: 98, revenue: "₴ 3,900", stock: 15 },
-];
-
-const activityFeed = [
-  {
-    id: 1,
-    user: "Анна С.",
-    action: "створила накладну",
-    item: "№INV-2026",
-    time: "10 хв тому",
-  },
-  {
-    id: 2,
-    user: "Система",
-    action: "сформувала звіт",
-    item: "За місяць",
-    time: "1 год тому",
-  },
-  {
-    id: 3,
-    user: "Олег М.",
-    action: "прийняв товар",
-    item: "Від постачальника 'Кавовий Дім'",
-    time: "3 год тому",
-  },
-];
+import {
+  fetchDashboardData,
+  buildMetricCards,
+  buildSalesChart,
+  buildLowStockAlerts,
+  buildTopProducts,
+  buildActivityFeed,
+} from "../modules/dashboard";
+import type {
+  DashboardMetrics,
+  ChartPoint,
+  LowStockAlert,
+  TopProduct,
+  ActivityFeedItem,
+} from "../modules/dashboard";
 
 export const HomePage: React.FC = () => {
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [metrics, setMetrics] = useState<DashboardMetrics>({
+    totalRevenue: 0,
+    ordersToday: 0,
+    totalStock: 0,
+    profit: 0,
+    profitMargin: 0.48,
+  });
+  const [salesData, setSalesData] = useState<ChartPoint[]>([]);
+  const [lowStockAlerts, setLowStockAlerts] = useState<LowStockAlert[]>([]);
+  const [topProducts, setTopProducts] = useState<TopProduct[]>([]);
+  const [activityFeed, setActivityFeed] = useState<ActivityFeedItem[]>([]);
+
+  useEffect(() => {
+    const loadDashboard = async () => {
+      try {
+        setIsLoading(true);
+        setError("");
+
+        const { products, sales } = await fetchDashboardData();
+
+        setMetrics(buildMetricCards(products, sales));
+        setSalesData(buildSalesChart(sales));
+        setLowStockAlerts(buildLowStockAlerts(products));
+        setTopProducts(buildTopProducts(products, sales));
+        setActivityFeed(buildActivityFeed(sales));
+      } catch (err) {
+        console.error(err);
+        setError(
+          "Не вдалося завантажити дашборд. Перевірте підключення до бекенду або авторизацію.",
+        );
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadDashboard();
+  }, []);
   return (
     <div className="flex h-screen bg-gray-50 text-gray-900 font-sans overflow-hidden selection:bg-emerald-100 selection:text-emerald-900">
       <Sidebar />
@@ -131,13 +112,23 @@ export const HomePage: React.FC = () => {
             </p>
           </div>
 
+          {error && (
+            <div className="rounded-2xl bg-red-50 border border-red-100 p-4 text-sm text-red-700">
+              {error}
+            </div>
+          )}
+
           {/* КАРТКИ ПОКАЗНИКІВ */}
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
             <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
               <p className="text-gray-500 text-sm font-medium mb-1">
                 Загальний дохід
               </p>
-              <h3 className="text-2xl font-bold text-gray-900">₴ 142,500</h3>
+              <h3 className="text-2xl font-bold text-gray-900">
+                {isLoading
+                  ? "..."
+                  : `₴ ${metrics.totalRevenue.toLocaleString("uk-UA", { minimumFractionDigits: 2 })}`}
+              </h3>
               <p className="text-emerald-600 mt-2 flex items-center gap-1 text-xs font-medium">
                 <TrendingUp size={14} /> +12.5% з минулого місяця
               </p>
@@ -147,7 +138,9 @@ export const HomePage: React.FC = () => {
               <p className="text-gray-500 text-sm font-medium mb-1">
                 Замовлень сьогодні
               </p>
-              <h3 className="text-2xl font-bold text-gray-900">42</h3>
+              <h3 className="text-2xl font-bold text-gray-900">
+                {isLoading ? "..." : metrics.ordersToday}
+              </h3>
               <p className="text-emerald-600 mt-2 flex items-center gap-1 text-xs font-medium">
                 <ArrowUpRight size={14} /> +5 у порівнянні з вчора
               </p>
@@ -157,7 +150,9 @@ export const HomePage: React.FC = () => {
               <p className="text-gray-500 text-sm font-medium mb-1">
                 Товарів на складі
               </p>
-              <h3 className="text-2xl font-bold text-gray-900">1,248 од.</h3>
+              <h3 className="text-2xl font-bold text-gray-900">
+                {isLoading ? "..." : `${metrics.totalStock} од.`}
+              </h3>
               <p className="text-gray-500 mt-2 flex items-center gap-1 text-xs font-medium">
                 Розподілено по 2 складах
               </p>
@@ -168,9 +163,13 @@ export const HomePage: React.FC = () => {
               <p className="text-gray-500 text-sm font-medium mb-1">
                 Чистий прибуток
               </p>
-              <h3 className="text-2xl font-bold text-emerald-800">₴ 68,400</h3>
+              <h3 className="text-2xl font-bold text-emerald-800">
+                {isLoading
+                  ? "..."
+                  : `₴ ${metrics.profit.toLocaleString("uk-UA", { minimumFractionDigits: 2 })}`}
+              </h3>
               <p className="text-emerald-700 mt-2 flex items-center gap-1 text-xs font-medium">
-                Рентабельність: 48%
+                Рентабельність: {metrics.profitMargin * 100}%
               </p>
             </div>
           </div>
@@ -267,26 +266,32 @@ export const HomePage: React.FC = () => {
               </div>
 
               <div className="flex-1 space-y-3">
-                {lowStockAlerts.map((alert) => (
-                  <div
-                    key={alert.id}
-                    className="border border-gray-100 rounded-lg p-3 flex justify-between items-center hover:bg-gray-50 transition-colors"
-                  >
-                    <div>
-                      <h4 className="font-medium text-gray-900 text-sm">
-                        {alert.name}
-                      </h4>
-                      <p className="text-xs text-gray-500 mt-0.5">
-                        Мінімум: {alert.threshold}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <span className="inline-flex items-center justify-center px-2.5 py-1 rounded-md bg-red-50 text-red-700 text-xs font-bold border border-red-100">
-                        {alert.stock} од.
-                      </span>
-                    </div>
+                {lowStockAlerts.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-gray-200 p-5 text-center text-sm text-gray-500">
+                    Немає критичних залишків.
                   </div>
-                ))}
+                ) : (
+                  lowStockAlerts.map((alert) => (
+                    <div
+                      key={alert.id}
+                      className="border border-gray-100 rounded-lg p-3 flex justify-between items-center hover:bg-gray-50 transition-colors"
+                    >
+                      <div>
+                        <h4 className="font-medium text-gray-900 text-sm">
+                          {alert.name}
+                        </h4>
+                        <p className="text-xs text-gray-500 mt-0.5">
+                          Мінімум: {alert.threshold}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <span className="inline-flex items-center justify-center px-2.5 py-1 rounded-md bg-red-50 text-red-700 text-xs font-bold border border-red-100">
+                          {alert.stock} од.
+                        </span>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
 
               <button className="mt-5 w-full py-2 bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-700 rounded-lg text-sm font-medium transition-colors">
@@ -315,37 +320,48 @@ export const HomePage: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
-                    {topProducts.map((product) => (
-                      <tr
-                        key={product.id}
-                        className="hover:bg-gray-50 transition-colors"
-                      >
-                        <td className="px-6 py-3.5 font-medium text-gray-900">
-                          {product.name}
-                        </td>
-                        <td className="px-6 py-3.5 text-gray-600">
-                          {product.sales} од.
-                        </td>
-                        <td className="px-6 py-3.5 text-gray-900 font-medium">
-                          {product.revenue}
-                        </td>
-                        <td className="px-6 py-3.5">
-                          <div className="flex items-center gap-3">
-                            <div className="w-24 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                              <div
-                                className={`h-full rounded-full ${product.stock < 25 ? "bg-amber-500" : "bg-emerald-600"}`}
-                                style={{
-                                  width: `${Math.min(product.stock, 100)}%`,
-                                }}
-                              ></div>
-                            </div>
-                            <span className="text-xs text-gray-500 w-8">
-                              {product.stock}%
-                            </span>
-                          </div>
+                    {topProducts.length === 0 ? (
+                      <tr>
+                        <td
+                          colSpan={4}
+                          className="px-6 py-12 text-center text-gray-400"
+                        >
+                          Немає продажів для формування рейтингу товарів.
                         </td>
                       </tr>
-                    ))}
+                    ) : (
+                      topProducts.map((product) => (
+                        <tr
+                          key={product.id}
+                          className="hover:bg-gray-50 transition-colors"
+                        >
+                          <td className="px-6 py-3.5 font-medium text-gray-900">
+                            {product.name}
+                          </td>
+                          <td className="px-6 py-3.5 text-gray-600">
+                            {product.sales} од.
+                          </td>
+                          <td className="px-6 py-3.5 text-gray-900 font-medium">
+                            {product.revenue}
+                          </td>
+                          <td className="px-6 py-3.5">
+                            <div className="flex items-center gap-3">
+                              <div className="w-24 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                                <div
+                                  className={`h-full rounded-full ${product.stock < 25 ? "bg-amber-500" : "bg-emerald-600"}`}
+                                  style={{
+                                    width: `${Math.min(product.stock, 100)}%`,
+                                  }}
+                                ></div>
+                              </div>
+                              <span className="text-xs text-gray-500 w-8">
+                                {product.stock}%
+                              </span>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -357,21 +373,28 @@ export const HomePage: React.FC = () => {
                 Останні дії
               </h2>
               <div className="relative border-l border-gray-200 ml-2 space-y-6">
-                {activityFeed.map((activity) => (
-                  <div key={activity.id} className="relative pl-5">
-                    <div className="absolute -left-[5px] top-1.5 w-2 h-2 rounded-full bg-emerald-700 ring-4 ring-white"></div>
-                    <p className="text-xs text-gray-500 mb-0.5">
-                      {activity.time}
-                    </p>
-                    <p className="text-sm text-gray-900">
-                      <span className="font-medium">{activity.user}</span>{" "}
-                      {activity.action}
-                    </p>
-                    <p className="text-xs font-medium text-gray-600 mt-1">
-                      {activity.item}
-                    </p>
+                {activityFeed.length === 0 ? (
+                  <div className="relative pl-5 text-sm text-gray-500">
+                    Немає останніх дій. Проведіть перший продаж, щоб заповнити
+                    стрічку.
                   </div>
-                ))}
+                ) : (
+                  activityFeed.map((activity) => (
+                    <div key={activity.id} className="relative pl-5">
+                      <div className="absolute -left-[5px] top-1.5 w-2 h-2 rounded-full bg-emerald-700 ring-4 ring-white"></div>
+                      <p className="text-xs text-gray-500 mb-0.5">
+                        {activity.time}
+                      </p>
+                      <p className="text-sm text-gray-900">
+                        <span className="font-medium">{activity.user}</span>{" "}
+                        {activity.action}
+                      </p>
+                      <p className="text-xs font-medium text-gray-600 mt-1">
+                        {activity.item}
+                      </p>
+                    </div>
+                  ))
+                )}
               </div>
               <button className="mt-6 w-full flex items-center justify-center gap-1 text-gray-500 hover:text-emerald-700 text-sm font-medium transition-colors">
                 Переглянути всі <ChevronRight size={16} />

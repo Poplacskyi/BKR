@@ -19,7 +19,7 @@ const menuItems = [
     path: "/dashboard",
   },
   { id: "inventory", icon: Package, label: "Склад", path: "/inventory" },
-  { id: "sales", icon: ShoppingCart, label: "Продажі" },
+  { id: "sales", icon: ShoppingCart, label: "Продажі", path: "/sales" },
   { id: "suppliers", icon: Users, label: "Клієнти та Постачальники" },
   { id: "reports", icon: FileText, label: "Звіти" },
   { id: "settings", icon: Settings, label: "Налаштування" },
