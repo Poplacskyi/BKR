@@ -11,6 +11,8 @@ import { Product } from './product/product.entity';
 import { SalesModule } from './sales/sales.module';
 import { Sale } from './sales/sale.entity';
 import { SaleItem } from './sales/sale-item.entity';
+import { AnalyticsModule } from './analytics/analytics.module';
+import { StockHistoryModule } from './stock-history/stock-history.module';
 
 @Module({
   imports: [
@@ -30,6 +32,8 @@ import { SaleItem } from './sales/sale-item.entity';
     UsersModule,
     ProductsModule,
     SalesModule,
+    AnalyticsModule,
+    StockHistoryModule,
   ],
   controllers: [AppController],
   providers: [AppService],
