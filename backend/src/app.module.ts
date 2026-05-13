@@ -36,9 +36,9 @@ import { StockHistory } from './stock-history/stock-history.entity';
             entities: [User, Product, Sale, SaleItem, StockHistory],
             synchronize: true, // Увага: для продакшену зазвичай ставлять false, але для MVP залишаємо true
             // Розкоментуйте блок нижче, якщо Railway видаватиме помилку SSL:
-            // ssl: {
-            //   rejectUnauthorized: false,
-            // },
+            ssl: {
+              rejectUnauthorized: false,
+            },
           };
         }
 
