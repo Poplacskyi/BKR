@@ -2,17 +2,14 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: "http://localhost:3000", // Адреса вашого бекенду
+  baseURL: "http://bkr-production.up.railway.app", // Адреса вашого бекенду
 });
 
 // Додаємо інтерцептор, який автоматично чіпляє токен до кожного запиту
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("token");
+  const token = localStorage.getItem("token"); // або звідки ви берете токен
   if (token) {
-    config.headers = {
-      ...config.headers,
-      Authorization: `Bearer ${token}`,
-    };
+    config.headers.set("Authorization", `Bearer ${token}`);
   }
   return config;
 });

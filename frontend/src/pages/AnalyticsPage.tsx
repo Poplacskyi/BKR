@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Sidebar } from "../components/Sidebar";
 import {
   Download,
@@ -44,6 +44,7 @@ interface ForecastItem {
   oosdays: number;
   forecastedRevenue: number;
   forecastedProfit: number;
+  currentStock: number;
 }
 
 interface BasketRule {
