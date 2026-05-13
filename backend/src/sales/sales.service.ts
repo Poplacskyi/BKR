@@ -52,14 +52,14 @@ export class SalesService {
         await queryRunner.manager.save(product);
 
         // 3. Рахуємо суму і формуємо запис для чека
-        const itemTotal = Number(product.price) * item.quantity;
+        const itemTotal = Number(product.askPrice) * item.quantity;
         totalAmount += itemTotal;
 
         saleItemsToSave.push({
           productId: product.id,
           productName: product.name,
           quantity: item.quantity,
-          priceAtSale: product.price,
+          priceAtSale: product.askPrice,
         });
       }
 

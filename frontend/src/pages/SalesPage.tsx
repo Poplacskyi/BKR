@@ -21,7 +21,7 @@ interface Product {
   id: number;
   name: string;
   sku: string;
-  price: number;
+  askPrice: number; // Ціна продажу
   stock: number;
 }
 
@@ -142,7 +142,7 @@ export const SalesPage: React.FC = () => {
   };
 
   const cartTotal = cart.reduce(
-    (sum, item) => sum + item.product.price * item.quantity,
+    (sum, item) => sum + item.product.askPrice * item.quantity,
     0,
   );
 
@@ -358,7 +358,7 @@ export const SalesPage: React.FC = () => {
                         </div>
                         <div className="text-right">
                           <p className="text-sm font-bold text-gray-900">
-                            {Number(product.price).toLocaleString()} ₴
+                            {Number(product.askPrice).toLocaleString()} ₴
                           </p>
                           <p
                             className={`text-[10px] font-bold uppercase tracking-wider mt-0.5 ${product.stock > 0 ? "text-emerald-600" : "text-red-500"}`}
@@ -398,7 +398,8 @@ export const SalesPage: React.FC = () => {
                           {item.product.name}
                         </h4>
                         <p className="text-xs text-gray-500 mt-0.5">
-                          {Number(item.product.price).toLocaleString()} ₴ / шт.
+                          {Number(item.product.askPrice).toLocaleString()} ₴ /
+                          шт.
                         </p>
                       </div>
 
@@ -425,7 +426,7 @@ export const SalesPage: React.FC = () => {
                         <div className="w-16 text-right">
                           <p className="text-sm font-bold text-gray-900">
                             {(
-                              item.product.price * item.quantity
+                              item.product.askPrice * item.quantity
                             ).toLocaleString()}{" "}
                             ₴
                           </p>

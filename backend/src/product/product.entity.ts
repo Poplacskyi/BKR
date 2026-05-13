@@ -24,8 +24,11 @@ export class Product {
   @Column({ type: 'text', nullable: true })
   description?: string;
 
-  @Column({ type: 'decimal', precision: 10, scale: 2 })
-  price!: number;
+  @Column({ type: 'numeric', precision: 10, scale: 2 })
+  askPrice: number;
+
+  @Column({ type: 'numeric', precision: 10, scale: 2, default: 0 })
+  bidPrice: number;
 
   @Column({ type: 'int', default: 0, name: 'volume' })
   stock!: number;

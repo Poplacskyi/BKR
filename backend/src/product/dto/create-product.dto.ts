@@ -22,7 +22,11 @@ export class CreateProductDto {
 
   @IsNumber()
   @Min(0, { message: "Ціна не може бути від'ємною" })
-  price: number;
+  askPrice: number;
+
+  @IsNumber()
+  @Min(0, { message: "Ціна не може бути від'ємною" })
+  bidPrice: number;
 
   @IsNumber()
   @Min(0, { message: "Кількість на складі не може бути від'ємною" })

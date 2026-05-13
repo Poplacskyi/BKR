@@ -10,9 +10,10 @@ interface Product {
   name: string;
   sku: string;
   description: string;
-  price: number;
+  askPrice: number; // Ціна продажу
+  bidPrice: number; // Ціна закупівлі
   stock: number;
-  userId: number; // Додано поле власника
+  userId: number;
 }
 
 export const InventoryPage: React.FC = () => {
@@ -30,7 +31,8 @@ export const InventoryPage: React.FC = () => {
     name: "",
     sku: "",
     description: "",
-    price: 0,
+    askPrice: 0,
+    bidPrice: 0,
     stock: 0,
   });
 
@@ -62,7 +64,14 @@ export const InventoryPage: React.FC = () => {
 
   const handleAddNew = () => {
     setEditingProduct(null);
-    setFormData({ name: "", sku: "", description: "", price: 0, stock: 0 });
+    setFormData({
+      name: "",
+      sku: "",
+      description: "",
+      askPrice: 0,
+      bidPrice: 0,
+      stock: 0,
+    });
     setIsModalOpen(true);
   };
 
@@ -72,7 +81,8 @@ export const InventoryPage: React.FC = () => {
       name: product.name,
       sku: product.sku,
       description: product.description || "",
-      price: product.price,
+      askPrice: product.askPrice,
+      bidPrice: product.bidPrice,
       stock: product.stock,
     });
     setIsModalOpen(true);
@@ -94,8 +104,11 @@ export const InventoryPage: React.FC = () => {
       // Нам НЕ потрібно відправляти userId вручну,
       // бекенд сам візьме його з токена (AuthGuard + req.user)
       const payload = {
-        ...formData,
-        price: Number(formData.price),
+        name: formData.name,
+        sku: formData.sku,
+        description: formData.description,
+        askPrice: Number(formData.askPrice),
+        bidPrice: Number(formData.bidPrice),
         stock: Number(formData.stock),
       };
 
@@ -174,7 +187,13 @@ export const InventoryPage: React.FC = () => {
                     Назва товару
                   </th>
                   <th className="px-6 py-4 font-semibold uppercase tracking-wider text-[11px]">
-                    Ціна (₴)
+                    Ціна продажу (₴)
+                  </th>
+                  <th className="px-6 py-4 font-semibold uppercase tracking-wider text-[11px]">
+                    Ціна закупівлі (₴)
+                  </th>
+                  <th className="px-6 py-4 font-semibold uppercase tracking-wider text-[11px]">
+                    Маржа (₴)
                   </th>
                   <th className="px-6 py-4 font-semibold uppercase tracking-wider text-[11px]">
                     Залишок
@@ -217,10 +236,20 @@ export const InventoryPage: React.FC = () => {
                       <td className="px-6 py-4 font-semibold text-gray-900">
                         {product.name}
                       </td>
-                      <td className="px-6 py-4 text-gray-700 font-medium">
-                        {Number(product.price).toLocaleString("uk-UA", {
+                      <td className="px-6 py-3.5 font-medium text-gray-900">
+                        ₴{" "}
+                        {Number(product.askPrice).toLocaleString("uk-UA", {
                           minimumFractionDigits: 2,
                         })}
+                      </td>
+                      <td className="px-6 py-3.5 text-gray-500">
+                        ₴{" "}
+                        {Number(product.bidPrice).toLocaleString("uk-UA", {
+                          minimumFractionDigits: 2,
+                        })}
+                      </td>
+                      <td className="px-6 py-3.5 text-emerald-600 font-medium">
+                        ₴ {(product.askPrice - product.bidPrice).toFixed(2)}
                       </td>
                       <td className="px-6 py-4">
                         <span
@@ -312,21 +341,40 @@ export const InventoryPage: React.FC = () => {
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-3 gap-4">
                   <div>
                     <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-widest mb-1.5">
-                      Ціна (₴)
+                      Ціна продажу (₴)
                     </label>
                     <input
                       type="number"
                       min="0"
                       step="0.01"
                       required
-                      value={formData.price}
+                      value={formData.askPrice}
                       onChange={(e) =>
                         setFormData({
                           ...formData,
-                          price: e.target.valueAsNumber,
+                          askPrice: e.target.valueAsNumber,
+                        })
+                      }
+                      className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all outline-none font-medium"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-widest mb-1.5">
+                      Ціна закупівлі (₴)
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      required
+                      value={formData.bidPrice}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          bidPrice: e.target.valueAsNumber,
                         })
                       }
                       className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all outline-none font-medium"

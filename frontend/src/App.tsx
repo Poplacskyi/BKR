@@ -5,14 +5,21 @@ import { RegisterPage } from "./pages/RegisterPage";
 import { HomePage } from "./pages/HomePage";
 import { InventoryPage } from "./pages/InventoryPage";
 import { SalesPage } from "./pages/SalesPage";
+import AnalyticsPage from "./pages/AnalyticsPage";
 
 function App() {
+  const token = localStorage.getItem("token");
+
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<Navigate to="/login" replace />} />
+        <Route
+          path="/"
+          element={<Navigate to={token ? "/dashboard" : "/login"} replace />}
+        />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
+        <Route path="/analytics" element={<AnalyticsPage />} />
 
         <Route path="/dashboard" element={<HomePage />} />
         <Route path="/inventory" element={<InventoryPage />} />

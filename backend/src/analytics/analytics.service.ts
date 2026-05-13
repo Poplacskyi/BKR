@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { SaleItem } from '../sales/sale-item.entity';
@@ -6,71 +6,117 @@ import { Sale } from '../sales/sale.entity';
 import { Product } from '../product/product.entity';
 import { StockHistoryService } from '../stock-history/stock-history.service';
 
-// ─── Типи результатів ──────────────────────────────────────────────────────────
+// ─── Типи результатів ─────────────────────────────────────────────────────────
 
 export interface AbcXyzResult {
   productId: number;
   productName: string;
   sku: string;
   totalRevenue: number;
-  revenueShare: number; // % від загальної виручки
-  cumulativeShare: number; // накопичений %
+  totalCost: number;
+  grossProfit: number;
+  margin: number;
+  revenueShare: number;
+  cumulativeShare: number;
   abcGroup: 'A' | 'B' | 'C';
+  profitShare: number;
+  profitCumulativeShare: number;
+  abcProfitGroup: 'A' | 'B' | 'C';
   xyzGroup: 'X' | 'Y' | 'Z';
-  matrix: string; // напр. 'AX', 'BZ'
-  avgDailyDemand: number; // скоригований (OOS-компенсований)
-  forecastedDemand: number; // прогноз на наступний місяць
-  currentStock: number;
-  recommendedOrder: number; // скільки замовити
   variationCoefficient: number;
-}
-
-export interface MarketBasketRule {
-  itemA: string;
-  itemB: string;
-  support: number; // частота спільних покупок
-  confidence: number; // якщо купили A → ймовірність купити B
-  lift: number; // наскільки зв'язок сильніший за випадковий
+  matrix: string;
+  avgDailyDemand: number;
+  forecastedDemand: number;
+  currentStock: number;
+  stockValue: number;
+  recommendedOrder: number;
+  recommendedOrderCost: number;
 }
 
 export interface ForecastResult {
   productId: number;
   productName: string;
-  dailyDemand: number; // середньоденний попит (скоригований)
-  forecastNextMonth: number; // прогноз на 30 днів
-  availableDays: number; // реальних днів продажів (без OOS)
-  oosdays: number; // днів без товару
+  dailyDemand: number;
+  forecastNextMonth: number;
+  availableDays: number;
+  oosdays: number;
+  forecastedRevenue: number;
+  forecastedProfit: number;
 }
 
-// ─── Сервіс ────────────────────────────────────────────────────────────────────
+export interface MarketBasketRule {
+  itemA: string;
+  itemB: string;
+  support: number;
+  confidence: number;
+  lift: number;
+}
+
+export interface AnalyticsSummary {
+  totalRevenue: number;
+  totalCost: number;
+  totalProfit: number;
+  avgMargin: number;
+  totalStockValue: number;
+  productsNeedReorder: number;
+  totalOosDays: number;
+}
+
+// ─── Сервіс ───────────────────────────────────────────────────────────────────
 
 @Injectable()
 export class AnalyticsService {
+  private readonly logger = new Logger(AnalyticsService.name);
+
   constructor(
     @InjectRepository(SaleItem)
     private readonly saleItemRepo: Repository<SaleItem>,
-
     @InjectRepository(Sale)
     private readonly saleRepo: Repository<Sale>,
-
     @InjectRepository(Product)
     private readonly productRepo: Repository<Product>,
-
     private readonly stockHistoryService: StockHistoryService,
   ) {}
 
-  // ══════════════════════════════════════════════════════════════════════════════
-  // 1. ABC/XYZ АНАЛІЗ
-  // ══════════════════════════════════════════════════════════════════════════════
+  // ──────────────────────────────────────────────────────────────────────────────
+  // 1. ПІДСУМКОВІ KPI (Для майбутнього Дашборду)
+  // ──────────────────────────────────────────────────────────────────────────────
+  async getSummary(months = 3): Promise<AnalyticsSummary> {
+    const [abcData, forecastData, products] = await Promise.all([
+      this.getAbcXyzAnalysis(months),
+      this.getForecast(months),
+      this.productRepo.find(),
+    ]);
 
-  /**
-   * Повний ABC/XYZ аналіз з Out-of-Stock компенсацією.
-   * @param months — за скільки місяців рахувати (за замовч. 3)
-   */
-  async getAbcXyzAnalysis(months: number = 3): Promise<AbcXyzResult[]> {
+    const totalRevenue = abcData.reduce((s, d) => s + d.totalRevenue, 0);
+    const totalCost = abcData.reduce((s, d) => s + d.totalCost, 0);
+    const totalProfit = totalRevenue - totalCost;
+    const avgMargin = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
+
+    const totalStockValue = products.reduce((sum, p: any) => {
+      const stock = Number(p.volume ?? p.stock ?? 0);
+      const bidPrice = Number(p.bidPrice ?? p.purchasePrice ?? 0);
+      return sum + stock * bidPrice;
+    }, 0);
+
+    return {
+      totalRevenue: Math.round(totalRevenue * 100) / 100,
+      totalCost: Math.round(totalCost * 100) / 100,
+      totalProfit: Math.round(totalProfit * 100) / 100,
+      avgMargin: Math.round(avgMargin * 10) / 10,
+      totalStockValue: Math.round(totalStockValue * 100) / 100,
+      productsNeedReorder: abcData.filter((d) => d.recommendedOrder > 0).length,
+      totalOosDays: forecastData.reduce((s, d) => s + d.oosdays, 0),
+    };
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────────
+  // 2. ABC/XYZ АНАЛІЗ (З урахуванням прибутку та собівартості)
+  // ──────────────────────────────────────────────────────────────────────────────
+  async getAbcXyzAnalysis(months = 3): Promise<AbcXyzResult[]> {
     const { from, to } = this.getDateRange(months);
 
-    // 1. Отримуємо продажі по товарах за період
+    // Отримуємо продажі (Виручка рахується через priceAtSale)
     const salesData = await this.saleItemRepo
       .createQueryBuilder('si')
       .innerJoin('si.sale', 'sale')
@@ -89,50 +135,88 @@ export class AnalyticsService {
     const products = await this.productRepo.find();
     const productMap = new Map(products.map((p) => [p.id, p]));
 
-    const totalRevenue = salesData.reduce(
-      (sum, r) => sum + parseFloat(r.totalRevenue),
-      0,
-    );
+    // Збагачуємо дані собівартістю на стороні JS (найбезпечніший метод)
+    const enriched = salesData.map((r) => {
+      const productId = parseInt(r.productId);
+      const prod: any = productMap.get(productId) || {};
 
-    // 2. Рахуємо виручку та частку для ABC
-    const withRevenue = salesData.map((r) => ({
-      productId: parseInt(r.productId),
-      productName: r.productName as string,
-      sku: productMap.get(parseInt(r.productId))?.sku ?? '',
-      totalRevenue: parseFloat(r.totalRevenue),
-      totalQty: parseInt(r.totalQty),
-      revenueShare: (parseFloat(r.totalRevenue) / totalRevenue) * 100,
-      currentStock: productMap.get(parseInt(r.productId))?.stock ?? 0,
-    }));
+      const totalQty = parseInt(r.totalQty || '0');
+      const revenue = parseFloat(r.totalRevenue || '0');
 
-    // Сортуємо за виручкою (спадання)
-    withRevenue.sort((a, b) => b.totalRevenue - a.totalRevenue);
+      // Гнучкий пошук полів (підтримує bidPrice або purchasePrice)
+      const bidPrice = Number(prod.bidPrice ?? prod.purchasePrice ?? 0);
+      const currentStock = Number(prod.volume ?? prod.stock ?? 0);
+      const sku = prod.sku ?? '';
 
-    // 3. Присвоюємо ABC групи (накопичений %)
-    let cumulative = 0;
-    const withAbc = withRevenue.map((item) => {
-      cumulative += item.revenueShare;
+      const cost = totalQty * bidPrice;
+      const profit = revenue - cost;
+      const margin = revenue > 0 ? (profit / revenue) * 100 : 0;
+
       return {
-        ...item,
-        cumulativeShare: cumulative,
-        abcGroup:
-          cumulative <= 80
-            ? 'A'
-            : cumulative <= 95
-              ? 'B'
-              : ('C' as 'A' | 'B' | 'C'),
+        productId,
+        productName: r.productName as string,
+        sku,
+        totalQty,
+        totalRevenue: revenue,
+        totalCost: cost,
+        grossProfit: profit,
+        margin,
+        currentStock,
+        bidPrice,
       };
     });
 
-    // 4. XYZ: коефіцієнт варіації по місяцях
+    const totalRevenue = enriched.reduce((s, r) => s + r.totalRevenue, 0);
+    const totalProfit = enriched.reduce((s, r) => s + r.grossProfit, 0);
+
+    // Рахуємо частки
+    enriched.forEach((item) => {
+      (item as any).revenueShare =
+        totalRevenue > 0 ? (item.totalRevenue / totalRevenue) * 100 : 0;
+      (item as any).profitShare =
+        totalProfit > 0 ? (item.grossProfit / totalProfit) * 100 : 0;
+    });
+
+    // ABC за ВИРУЧКОЮ
+    enriched.sort((a, b) => b.totalRevenue - a.totalRevenue);
+    let cumRev = 0;
+    const withAbcRev = enriched.map((item: any) => {
+      cumRev += item.revenueShare;
+      return {
+        ...item,
+        cumulativeShare: cumRev,
+        abcGroup: this.abcGroup(cumRev),
+      };
+    });
+
+    // ABC за ПРИБУТКОМ
+    const sortedByProfit = [...withAbcRev].sort(
+      (a, b) => b.grossProfit - a.grossProfit,
+    );
+    let cumProfit = 0;
+    const profitGroupMap = new Map<
+      number,
+      { cumShare: number; group: 'A' | 'B' | 'C' }
+    >();
+
+    for (const item of sortedByProfit) {
+      cumProfit += item.profitShare;
+      profitGroupMap.set(item.productId, {
+        cumShare: cumProfit,
+        group: this.abcGroup(cumProfit),
+      });
+    }
+
     const monthlyData = await this.getMonthlySalesByProduct(months);
     const totalDays = months * 30;
-
-    // 5. Збираємо фінальний результат з OOS-компенсацією
     const results: AbcXyzResult[] = [];
 
-    for (const item of withAbc) {
-      // OOS компенсація: реальних днів коли товар був у наявності
+    for (const item of withAbcRev) {
+      const pg = profitGroupMap.get(item.productId) ?? {
+        cumShare: 0,
+        group: 'C' as const,
+      };
+
       const availableDays =
         await this.stockHistoryService.getAvailableDaysCount(
           item.productId,
@@ -140,22 +224,15 @@ export class AnalyticsService {
           to.toISOString().split('T')[0],
         );
 
-      // Якщо немає даних stock_history — використовуємо totalDays (без компенсації)
       const denominator = availableDays > 0 ? availableDays : totalDays;
       const avgDailyDemand = item.totalQty / denominator;
 
-      // XYZ: коефіцієнт варіації
       const monthly = monthlyData.get(item.productId) ?? [];
       const cv = this.calculateCV(monthly);
-      const xyzGroup: 'X' | 'Y' | 'Z' =
-        cv <= 0.25 ? 'X' : cv <= 0.5 ? 'Y' : 'Z';
-
-      // Прогноз попиту на наступні 30 днів (просте експоненційне згладжування)
+      const xyzGroup = cv <= 0.25 ? 'X' : cv <= 0.5 ? 'Y' : 'Z';
       const forecastedDemand = Math.ceil(
         this.exponentialSmoothing(monthly, 0.3) * 30,
       );
-
-      // Рекомендація закупівлі: прогноз + страховий запас (7 днів) - поточний залишок
       const safetyStock = Math.ceil(avgDailyDemand * 7);
       const recommendedOrder = Math.max(
         0,
@@ -166,31 +243,43 @@ export class AnalyticsService {
         productId: item.productId,
         productName: item.productName,
         sku: item.sku,
-        totalRevenue: item.totalRevenue,
+
+        totalRevenue: Math.round(item.totalRevenue * 100) / 100,
+        totalCost: Math.round(item.totalCost * 100) / 100,
+        grossProfit: Math.round(item.grossProfit * 100) / 100,
+        margin: Math.round(item.margin * 10) / 10,
+
         revenueShare: Math.round(item.revenueShare * 100) / 100,
         cumulativeShare: Math.round(item.cumulativeShare * 100) / 100,
         abcGroup: item.abcGroup,
+
+        profitShare: Math.round(item.profitShare * 100) / 100,
+        profitCumulativeShare: Math.round(pg.cumShare * 100) / 100,
+        abcProfitGroup: pg.group,
+
         xyzGroup,
+        variationCoefficient: Math.round(cv * 1000) / 1000,
         matrix: `${item.abcGroup}${xyzGroup}`,
+
         avgDailyDemand: Math.round(avgDailyDemand * 100) / 100,
         forecastedDemand,
+
         currentStock: item.currentStock,
+        stockValue: Math.round(item.currentStock * item.bidPrice * 100) / 100,
         recommendedOrder,
-        variationCoefficient: Math.round(cv * 1000) / 1000,
+        recommendedOrderCost:
+          Math.round(recommendedOrder * item.bidPrice * 100) / 100,
       });
     }
 
     return results;
   }
 
-  // ══════════════════════════════════════════════════════════════════════════════
-  // 2. ПРОГНОЗ ПОПИТУ (окремо, з OOS-компенсацією)
-  // ══════════════════════════════════════════════════════════════════════════════
-
-  async getForecast(months: number = 3): Promise<ForecastResult[]> {
+  // ──────────────────────────────────────────────────────────────────────────────
+  // 3. ПРОГНОЗ ПОПИТУ
+  // ──────────────────────────────────────────────────────────────────────────────
+  async getForecast(months = 3): Promise<ForecastResult[]> {
     const { from, to } = this.getDateRange(months);
-    const fromStr = from.toISOString().split('T')[0];
-    const toStr = to.toISOString().split('T')[0];
     const totalDays = months * 30;
 
     const salesData = await this.saleItemRepo
@@ -205,49 +294,56 @@ export class AnalyticsService {
       .groupBy('si.productId, si.productName')
       .getRawMany();
 
+    const products = await this.productRepo.find();
+    const productMap = new Map(products.map((p) => [p.id, p]));
+
     const results: ForecastResult[] = [];
 
     for (const row of salesData) {
       const productId = parseInt(row.productId);
       const totalQty = parseInt(row.totalQty);
 
+      const prod: any = productMap.get(productId) || {};
+      const bidPrice = Number(prod.bidPrice ?? prod.purchasePrice ?? 0);
+      const askPrice = Number(
+        prod.askPrice ?? prod.salePrice ?? prod.price ?? 0,
+      );
+
       const availableDays =
         await this.stockHistoryService.getAvailableDaysCount(
           productId,
-          fromStr,
-          toStr,
+          from.toISOString().split('T')[0],
+          to.toISOString().split('T')[0],
         );
-      const oosDays = totalDays - availableDays;
+
+      const oosDays = Math.max(0, totalDays - availableDays);
       const denominator = availableDays > 0 ? availableDays : totalDays;
       const dailyDemand = totalQty / denominator;
+      const forecastNextMonth = Math.ceil(dailyDemand * 30);
 
       results.push({
         productId,
         productName: row.productName,
         dailyDemand: Math.round(dailyDemand * 100) / 100,
-        forecastNextMonth: Math.ceil(dailyDemand * 30),
+        forecastNextMonth,
         availableDays: denominator,
-        oosdays: Math.max(0, oosDays),
+        oosdays: oosDays,
+        forecastedRevenue: Math.round(forecastNextMonth * askPrice * 100) / 100,
+        forecastedProfit:
+          Math.round(forecastNextMonth * (askPrice - bidPrice) * 100) / 100,
       });
     }
 
-    return results.sort((a, b) => b.forecastNextMonth - a.forecastNextMonth);
+    return results.sort((a, b) => b.forecastedProfit - a.forecastedProfit);
   }
 
-  // ══════════════════════════════════════════════════════════════════════════════
-  // 3. MARKET BASKET ANALYSIS (аналіз кошика)
-  // ══════════════════════════════════════════════════════════════════════════════
-
-  /**
-   * Знаходить товари які часто купують разом.
-   * @param minSupport — мінімальна частота (0–1), за замовч. 0.1 (10% чеків)
-   * @param minConfidence — мінімальна впевненість (0–1), за замовч. 0.5
-   */
+  // ──────────────────────────────────────────────────────────────────────────────
+  // 4. MARKET BASKET (Аналіз кошика)
+  // ──────────────────────────────────────────────────────────────────────────────
   async getMarketBasketRules(
-    minSupport: number = 0.1,
-    minConfidence: number = 0.5,
+    minSupport = 0.1,
+    minConfidence = 0.5,
   ): Promise<MarketBasketRule[]> {
-    // Беремо всі чеки з більш ніж 1 позицією
     const saleIds = await this.saleItemRepo
       .createQueryBuilder('si')
       .select('si.saleId', 'saleId')
@@ -256,9 +352,8 @@ export class AnalyticsService {
       .getRawMany();
 
     if (!saleIds.length) return [];
-
     const ids = saleIds.map((r) => r.saleId);
-    const totalTransactions = ids.length;
+    const totalT = ids.length;
 
     const items = await this.saleItemRepo
       .createQueryBuilder('si')
@@ -266,7 +361,6 @@ export class AnalyticsService {
       .select(['si.saleId', 'si.productId', 'si.productName'])
       .getMany();
 
-    // Групуємо по чеку
     const basket = new Map<number, { id: number; name: string }[]>();
     for (const item of items) {
       if (!basket.has(item.saleId)) basket.set(item.saleId, []);
@@ -275,81 +369,70 @@ export class AnalyticsService {
         .push({ id: item.productId, name: item.productName });
     }
 
-    // Рахуємо support для пар
     const pairCount = new Map<string, number>();
     const itemCount = new Map<number, number>();
 
-    for (const [, basketItems] of basket) {
-      for (const item of basketItems) {
+    for (const [, bi] of basket) {
+      for (const item of bi)
         itemCount.set(item.id, (itemCount.get(item.id) ?? 0) + 1);
-      }
-
-      for (let i = 0; i < basketItems.length; i++) {
-        for (let j = i + 1; j < basketItems.length; j++) {
-          const key = [basketItems[i].id, basketItems[j].id].sort().join('_');
+      for (let i = 0; i < bi.length; i++) {
+        for (let j = i + 1; j < bi.length; j++) {
+          const key = [bi[i].id, bi[j].id].sort().join('_');
           pairCount.set(key, (pairCount.get(key) ?? 0) + 1);
         }
       }
     }
 
     const rules: MarketBasketRule[] = [];
-
     for (const [pair, count] of pairCount) {
-      const support = count / totalTransactions;
+      const support = count / totalT;
       if (support < minSupport) continue;
-
       const [idA, idB] = pair.split('_').map(Number);
       const nameA =
         items.find((i) => i.productId === idA)?.productName ?? `#${idA}`;
       const nameB =
         items.find((i) => i.productId === idB)?.productName ?? `#${idB}`;
+      const cA = itemCount.get(idA) ?? 1;
+      const cB = itemCount.get(idB) ?? 1;
+      const confAB = count / cA;
+      const confBA = count / cB;
+      const supA = cA / totalT;
+      const supB = cB / totalT;
+      const r = (n: number) => Math.round(n * 1000) / 1000;
 
-      const countA = itemCount.get(idA) ?? 1;
-      const countB = itemCount.get(idB) ?? 1;
-
-      const confidenceAtoB = count / countA;
-      const confidenceBtoA = count / countB;
-
-      const supportA = countA / totalTransactions;
-      const supportB = countB / totalTransactions;
-
-      if (confidenceAtoB >= minConfidence) {
+      if (confAB >= minConfidence) {
         rules.push({
           itemA: nameA,
           itemB: nameB,
-          support: Math.round(support * 1000) / 1000,
-          confidence: Math.round(confidenceAtoB * 1000) / 1000,
-          lift: Math.round((confidenceAtoB / supportB) * 1000) / 1000,
+          support: r(support),
+          confidence: r(confAB),
+          lift: r(confAB / supB),
         });
       }
-
-      if (confidenceBtoA >= minConfidence && idA !== idB) {
+      if (idA !== idB && confBA >= minConfidence) {
         rules.push({
           itemA: nameB,
           itemB: nameA,
-          support: Math.round(support * 1000) / 1000,
-          confidence: Math.round(confidenceBtoA * 1000) / 1000,
-          lift: Math.round((confidenceBtoA / supportA) * 1000) / 1000,
+          support: r(support),
+          confidence: r(confBA),
+          lift: r(confBA / supA),
         });
       }
     }
-
     return rules.sort((a, b) => b.lift - a.lift);
   }
 
-  // ══════════════════════════════════════════════════════════════════════════════
+  // ──────────────────────────────────────────────────────────────────────────────
   // ПРИВАТНІ МЕТОДИ
-  // ══════════════════════════════════════════════════════════════════════════════
+  // ──────────────────────────────────────────────────────────────────────────────
+  private abcGroup(cum: number): 'A' | 'B' | 'C' {
+    return cum <= 80 ? 'A' : cum <= 95 ? 'B' : 'C';
+  }
 
-  /**
-   * Повертає продажі по місяцях для кожного товару.
-   * Потрібно для розрахунку коефіцієнта варіації (XYZ).
-   */
   private async getMonthlySalesByProduct(
     months: number,
   ): Promise<Map<number, number[]>> {
     const { from, to } = this.getDateRange(months);
-
     const rows = await this.saleItemRepo
       .createQueryBuilder('si')
       .innerJoin('si.sale', 'sale')
@@ -369,14 +452,9 @@ export class AnalyticsService {
       if (!map.has(id)) map.set(id, []);
       map.get(id)!.push(parseFloat(row.qty));
     }
-
     return map;
   }
 
-  /**
-   * Коефіцієнт варіації: CV = σ / μ
-   * CV ≤ 0.25 → X (стабільний), ≤ 0.5 → Y, > 0.5 → Z (нестабільний)
-   */
   private calculateCV(values: number[]): number {
     if (values.length < 2) return 0;
     const mean = values.reduce((s, v) => s + v, 0) / values.length;
@@ -386,32 +464,17 @@ export class AnalyticsService {
     return Math.sqrt(variance) / mean;
   }
 
-  /**
-   * Просте експоненційне згладжування.
-   * Повертає прогноз на наступний період.
-   * @param values — масив значень по місяцях
-   * @param alpha — коефіцієнт згладжування (0–1)
-   */
-  private exponentialSmoothing(values: number[], alpha: number = 0.3): number {
+  private exponentialSmoothing(values: number[], alpha = 0.3): number {
     if (!values.length) return 0;
     if (values.length === 1) return values[0];
-
-    let smoothed = values[0];
+    let s = values[0];
     for (let i = 1; i < values.length; i++) {
-      // Фільтр аномалій: якщо значення > 3σ від поточного — ігноруємо
-      const deviation = Math.abs(values[i] - smoothed);
-      const threshold = smoothed * 2;
-      const actual =
-        deviation > threshold && smoothed > 0 ? smoothed : values[i];
-
-      smoothed = alpha * actual + (1 - alpha) * smoothed;
+      const v = Math.abs(values[i] - s) > s * 2 && s > 0 ? s : values[i];
+      s = alpha * v + (1 - alpha) * s;
     }
-    return smoothed;
+    return s;
   }
 
-  /**
-   * Утиліта: повертає діапазон дат {from, to} для N місяців назад.
-   */
   private getDateRange(months: number): { from: Date; to: Date } {
     const to = new Date();
     const from = new Date();

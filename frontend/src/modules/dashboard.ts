@@ -5,7 +5,7 @@ export interface Product {
   name: string;
   sku: string;
   description?: string;
-  price: number;
+  askPrice: number; // Ціна продажу
   stock: number;
   userId: number;
 }
