@@ -18,7 +18,10 @@ interface Product {
 
 export const InventoryPage: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
-  const [searchQuery, setSearchQuery] = useState(""); // Стан для пошуку
+  const [searchQuery, setSearchQuery] = useState(""); // Стан для фільтру
+  const [filterField, setFilterField] = useState<
+    "name" | "sku" | "stock" | "askPrice"
+  >("name");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -56,11 +59,28 @@ export const InventoryPage: React.FC = () => {
   }
 
   // Фільтрація товарів на фронтенді для пошуку
-  const filteredProducts = products.filter(
-    (p) =>
-      p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.sku.toLowerCase().includes(searchQuery.toLowerCase()),
-  );
+  const filteredProducts = products.filter((p) => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return true;
+
+    if (filterField === "name") {
+      return p.name.toLowerCase().includes(query);
+    }
+
+    if (filterField === "sku") {
+      return p.sku.toLowerCase().includes(query);
+    }
+
+    if (filterField === "stock") {
+      return String(p.stock).includes(query);
+    }
+
+    if (filterField === "askPrice") {
+      return String(p.askPrice).includes(query);
+    }
+
+    return true;
+  });
 
   const handleAddNew = () => {
     setEditingProduct(null);
@@ -137,18 +157,40 @@ export const InventoryPage: React.FC = () => {
       <main className="flex-1 flex flex-col h-screen overflow-y-auto relative">
         {/* HEADER */}
         <header className="sticky top-0 z-10 bg-white border-b border-gray-200 px-8 py-4 flex justify-between items-center shadow-sm">
-          <div className="relative w-96 group">
-            <Search
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-              size={18}
-            />
-            <input
-              type="text"
-              placeholder="Пошук по артикулу чи назві..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-gray-50 border border-gray-200 text-gray-900 rounded-lg py-2 pl-10 pr-4 text-sm focus:outline-none focus:border-emerald-800 focus:ring-1 focus:ring-emerald-800 transition-all"
-            />
+          <div className="flex items-center gap-3">
+            <div className="w-40">
+              <select
+                value={filterField}
+                onChange={(e) => setFilterField(e.target.value as any)}
+                className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:border-emerald-800 focus:ring-1 focus:ring-emerald-800 transition-colors"
+              >
+                <option value="name">Назва</option>
+                <option value="sku">Артикул</option>
+                <option value="stock">Кількість</option>
+                <option value="askPrice">Ціна</option>
+              </select>
+            </div>
+            <div className="relative flex-1 group">
+              <Search
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                size={18}
+              />
+              <input
+                type="text"
+                placeholder={`Пошук за ${
+                  filterField === "name"
+                    ? "назвою"
+                    : filterField === "sku"
+                      ? "артикулом"
+                      : filterField === "stock"
+                        ? "кількістю"
+                        : "ціною"
+                }...`}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full bg-gray-50 border border-gray-200 text-gray-900 rounded-lg py-2 pl-10 pr-4 text-sm focus:outline-none focus:border-emerald-800 focus:ring-1 focus:ring-emerald-800 transition-all"
+              />
+            </div>
           </div>
           <button
             onClick={handleAddNew}
@@ -207,7 +249,7 @@ export const InventoryPage: React.FC = () => {
                 {isLoading ? (
                   <tr>
                     <td
-                      colSpan={5}
+                      colSpan={7}
                       className="px-6 py-12 text-center text-gray-400 italic"
                     >
                       Завантаження вашої бази даних...
@@ -216,7 +258,7 @@ export const InventoryPage: React.FC = () => {
                 ) : filteredProducts.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={5}
+                      colSpan={7}
                       className="px-6 py-12 text-center text-gray-400"
                     >
                       {searchQuery
@@ -234,7 +276,16 @@ export const InventoryPage: React.FC = () => {
                         {product.sku}
                       </td>
                       <td className="px-6 py-4 font-semibold text-gray-900">
-                        {product.name}
+                        <div>{product.name}</div>
+                        {product.description ? (
+                          <p className="mt-1 text-sm text-gray-500 break-words">
+                            {product.description}
+                          </p>
+                        ) : (
+                          <p className="mt-1 text-sm text-gray-400 italic">
+                            Опис відсутній
+                          </p>
+                        )}
                       </td>
                       <td className="px-6 py-3.5 font-medium text-gray-900">
                         ₴{" "}
