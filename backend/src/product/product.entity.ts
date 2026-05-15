@@ -24,6 +24,9 @@ export class Product {
   @Column({ type: 'text', nullable: true })
   description?: string;
 
+  @Column({ nullable: true })
+  category: string;
+
   @Column({ type: 'numeric', precision: 10, scale: 2 })
   askPrice: number;
 

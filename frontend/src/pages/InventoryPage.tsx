@@ -1,45 +1,47 @@
-// src/pages/InventoryPage.tsx
 import React, { useState, useEffect } from "react";
-import { Search, Plus, Edit2, Trash2, X, AlertCircle } from "lucide-react";
+import { Search, Plus, Edit2, Trash2, X, AlertCircle, Tag } from "lucide-react";
 import { Sidebar } from "../components/Sidebar";
 import api from "../api/axios";
 
-// Оновлений інтерфейс з урахуванням userId
+// --- ІНТЕРФЕЙСИ ---
 interface Product {
   id: number;
   name: string;
   sku: string;
   description: string;
-  askPrice: number; // Ціна продажу
-  bidPrice: number; // Ціна закупівлі
+  category?: string; // Клас/Категорія товару
+  askPrice: number;
+  bidPrice: number;
   stock: number;
   userId: number;
 }
 
 export const InventoryPage: React.FC = () => {
+  // Стани списку та фільтрів
   const [products, setProducts] = useState<Product[]>([]);
-  const [searchQuery, setSearchQuery] = useState(""); // Стан для фільтру
+  const [searchQuery, setSearchQuery] = useState("");
   const [filterField, setFilterField] = useState<
-    "name" | "sku" | "stock" | "askPrice"
+    "name" | "sku" | "stock" | "askPrice" | "category"
   >("name");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // Стан для модального вікна
+  // Стани модального вікна та форми
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false); // Стан для кастомного дропдауну
 
-  // Дані форми
   const [formData, setFormData] = useState({
     name: "",
     sku: "",
     description: "",
+    category: "",
     askPrice: 0,
     bidPrice: 0,
     stock: 0,
   });
 
-  // Завантаження товарів
+  // Завантаження даних
   useEffect(() => {
     fetchProducts();
   }, []);
@@ -47,7 +49,6 @@ export const InventoryPage: React.FC = () => {
   async function fetchProducts() {
     try {
       setIsLoading(true);
-      // Бекенд автоматично поверне товари тільки поточного юзера завдяки токену
       const response = await api.get<Product[]>("/products");
       setProducts(response.data);
     } catch (err: any) {
@@ -58,36 +59,41 @@ export const InventoryPage: React.FC = () => {
     }
   }
 
-  // Фільтрація товарів на фронтенді для пошуку
+  // Витягуємо всі існуючі класи товарів для підказок
+  const existingCategories = Array.from(
+    new Set(
+      products.map((p) => p.category).filter((c) => c && c.trim() !== ""),
+    ),
+  ) as string[];
+
+  // Фільтруємо підказки класів під час вводу
+  const filteredCategories = existingCategories.filter((c) =>
+    c.toLowerCase().includes(formData.category.toLowerCase()),
+  );
+
+  // Фільтруємо товари для таблиці
   const filteredProducts = products.filter((p) => {
     const query = searchQuery.trim().toLowerCase();
     if (!query) return true;
 
-    if (filterField === "name") {
-      return p.name.toLowerCase().includes(query);
-    }
-
-    if (filterField === "sku") {
-      return p.sku.toLowerCase().includes(query);
-    }
-
-    if (filterField === "stock") {
-      return String(p.stock).includes(query);
-    }
-
-    if (filterField === "askPrice") {
-      return String(p.askPrice).includes(query);
-    }
+    if (filterField === "name") return p.name.toLowerCase().includes(query);
+    if (filterField === "sku") return p.sku.toLowerCase().includes(query);
+    if (filterField === "stock") return String(p.stock).includes(query);
+    if (filterField === "askPrice") return String(p.askPrice).includes(query);
+    if (filterField === "category")
+      return (p.category || "").toLowerCase().includes(query);
 
     return true;
   });
 
+  // --- ОБРОБНИКИ ФОРМИ ---
   const handleAddNew = () => {
     setEditingProduct(null);
     setFormData({
       name: "",
       sku: "",
       description: "",
+      category: "",
       askPrice: 0,
       bidPrice: 0,
       stock: 0,
@@ -101,6 +107,7 @@ export const InventoryPage: React.FC = () => {
       name: product.name,
       sku: product.sku,
       description: product.description || "",
+      category: product.category || "",
       askPrice: product.askPrice,
       bidPrice: product.bidPrice,
       stock: product.stock,
@@ -121,12 +128,11 @@ export const InventoryPage: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      // Нам НЕ потрібно відправляти userId вручну,
-      // бекенд сам візьме його з токена (AuthGuard + req.user)
       const payload = {
         name: formData.name,
         sku: formData.sku,
         description: formData.description,
+        category: formData.category,
         askPrice: Number(formData.askPrice),
         bidPrice: Number(formData.bidPrice),
         stock: Number(formData.stock),
@@ -166,6 +172,7 @@ export const InventoryPage: React.FC = () => {
               >
                 <option value="name">Назва</option>
                 <option value="sku">Артикул</option>
+                <option value="category">Клас товару</option>
                 <option value="stock">Кількість</option>
                 <option value="askPrice">Ціна</option>
               </select>
@@ -182,9 +189,11 @@ export const InventoryPage: React.FC = () => {
                     ? "назвою"
                     : filterField === "sku"
                       ? "артикулом"
-                      : filterField === "stock"
-                        ? "кількістю"
-                        : "ціною"
+                      : filterField === "category"
+                        ? "класом"
+                        : filterField === "stock"
+                          ? "кількістю"
+                          : "ціною"
                 }...`}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -226,13 +235,13 @@ export const InventoryPage: React.FC = () => {
                     Артикул (SKU)
                   </th>
                   <th className="px-6 py-4 font-semibold uppercase tracking-wider text-[11px]">
-                    Назва товару
+                    Назва та Клас
                   </th>
                   <th className="px-6 py-4 font-semibold uppercase tracking-wider text-[11px]">
                     Ціна продажу (₴)
                   </th>
                   <th className="px-6 py-4 font-semibold uppercase tracking-wider text-[11px]">
-                    Ціна закупівлі (₴)
+                    Собівартість (₴)
                   </th>
                   <th className="px-6 py-4 font-semibold uppercase tracking-wider text-[11px]">
                     Маржа (₴)
@@ -277,14 +286,10 @@ export const InventoryPage: React.FC = () => {
                       </td>
                       <td className="px-6 py-4 font-semibold text-gray-900">
                         <div>{product.name}</div>
-                        {product.description ? (
-                          <p className="mt-1 text-sm text-gray-500 break-words">
-                            {product.description}
-                          </p>
-                        ) : (
-                          <p className="mt-1 text-sm text-gray-400 italic">
-                            Опис відсутній
-                          </p>
+                        {product.category && (
+                          <div className="flex items-center gap-1 mt-1 text-[11px] font-medium text-emerald-700 bg-emerald-50 w-max px-2 py-0.5 rounded">
+                            <Tag size={10} /> {product.category}
+                          </div>
                         )}
                       </td>
                       <td className="px-6 py-3.5 font-medium text-gray-900">
@@ -304,13 +309,7 @@ export const InventoryPage: React.FC = () => {
                       </td>
                       <td className="px-6 py-4">
                         <span
-                          className={`inline-flex items-center px-2.5 py-1 rounded-md text-[11px] font-bold uppercase tracking-tighter ${
-                            product.stock <= 5
-                              ? "bg-red-50 text-red-700 border border-red-100"
-                              : product.stock <= 20
-                                ? "bg-amber-50 text-amber-700 border border-amber-100"
-                                : "bg-emerald-50 text-emerald-800 border border-emerald-100"
-                          }`}
+                          className={`inline-flex items-center px-2.5 py-1 rounded-md text-[11px] font-bold uppercase tracking-tighter ${product.stock <= 5 ? "bg-red-50 text-red-700 border border-red-100" : product.stock <= 20 ? "bg-amber-50 text-amber-700 border border-amber-100" : "bg-emerald-50 text-emerald-800 border border-emerald-100"}`}
                         >
                           {product.stock} од.
                         </span>
@@ -320,14 +319,12 @@ export const InventoryPage: React.FC = () => {
                           <button
                             onClick={() => handleEdit(product)}
                             className="text-gray-400 hover:text-emerald-800 transition-colors"
-                            title="Редагувати"
                           >
                             <Edit2 size={16} />
                           </button>
                           <button
                             onClick={() => handleDelete(product.id)}
                             className="text-gray-400 hover:text-red-600 transition-colors"
-                            title="Видалити"
                           >
                             <Trash2 size={16} />
                           </button>
@@ -342,10 +339,10 @@ export const InventoryPage: React.FC = () => {
         </div>
       </main>
 
-      {/* MODAL */}
+      {/* МОДАЛЬНЕ ВІКНО ДОДАВАННЯ/РЕДАГУВАННЯ */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden scale-in-center">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden scale-in-center overflow-visible">
             <div className="flex justify-between items-center p-6 border-b border-gray-100 bg-gray-50/50">
               <h3 className="text-lg font-bold text-gray-900">
                 {editingProduct ? "Оновлення позиції" : "Нова картка товару"}
@@ -360,36 +357,79 @@ export const InventoryPage: React.FC = () => {
 
             <form onSubmit={handleSubmit} className="p-8 space-y-5">
               <div className="space-y-4">
-                <div>
-                  <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-widest mb-1.5">
-                    Назва товару
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.name}
-                    onChange={(e) =>
-                      setFormData({ ...formData, name: e.target.value })
-                    }
-                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all outline-none"
-                    placeholder="Напр. Кава Арабіка 1кг"
-                  />
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-widest mb-1.5">
+                      Назва товару
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={formData.name}
+                      onChange={(e) =>
+                        setFormData({ ...formData, name: e.target.value })
+                      }
+                      className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all outline-none"
+                      placeholder="Напр. Футболка"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-widest mb-1.5">
+                      Артикул (SKU)
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={formData.sku}
+                      onChange={(e) =>
+                        setFormData({ ...formData, sku: e.target.value })
+                      }
+                      className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all outline-none"
+                      placeholder="TSH-001"
+                    />
+                  </div>
                 </div>
 
-                <div>
+                {/* КАСТОМНИЙ ДРОПДАУН ДЛЯ КАТЕГОРІЙ */}
+                <div className="relative">
                   <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-widest mb-1.5">
-                    Артикул (SKU)
+                    Клас товару (Категорія)
                   </label>
                   <input
                     type="text"
-                    required
-                    value={formData.sku}
-                    onChange={(e) =>
-                      setFormData({ ...formData, sku: e.target.value })
+                    value={formData.category}
+                    onChange={(e) => {
+                      setFormData({ ...formData, category: e.target.value });
+                      setShowCategoryDropdown(true);
+                    }}
+                    onFocus={() => setShowCategoryDropdown(true)}
+                    onBlur={() =>
+                      setTimeout(() => setShowCategoryDropdown(false), 200)
                     }
                     className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all outline-none"
-                    placeholder="COF-001"
+                    placeholder="Введіть новий або виберіть зі списку..."
+                    autoComplete="off"
                   />
+
+                  {/* Випадаючий список підказок */}
+                  {showCategoryDropdown && filteredCategories.length > 0 && (
+                    <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 shadow-xl rounded-xl max-h-48 overflow-y-auto animate-in fade-in slide-in-from-top-2">
+                      {filteredCategories.map((cat, index) => (
+                        <button
+                          key={index}
+                          type="button"
+                          onClick={() => {
+                            setFormData({ ...formData, category: cat });
+                            setShowCategoryDropdown(false);
+                          }}
+                          className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-emerald-50 hover:text-emerald-800 transition-colors border-b border-gray-50 last:border-0 flex items-center gap-2"
+                        >
+                          <Tag size={14} className="opacity-40" />
+                          {cat}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-3 gap-4">
@@ -414,7 +454,7 @@ export const InventoryPage: React.FC = () => {
                   </div>
                   <div>
                     <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-widest mb-1.5">
-                      Ціна закупівлі (₴)
+                      Собівартість (₴)
                     </label>
                     <input
                       type="number"
@@ -453,7 +493,7 @@ export const InventoryPage: React.FC = () => {
 
                 <div>
                   <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-widest mb-1.5">
-                    Опис (необов'язково)
+                    Опис
                   </label>
                   <textarea
                     rows={3}

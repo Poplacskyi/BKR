@@ -113,7 +113,7 @@ export class AnalyticsService {
   // ──────────────────────────────────────────────────────────────────────────────
   // 2. ABC/XYZ АНАЛІЗ (З урахуванням прибутку та собівартості)
   // ──────────────────────────────────────────────────────────────────────────────
-  async getAbcXyzAnalysis(months = 3): Promise<AbcXyzResult[]> {
+  async getAbcXyzAnalysis(userId: number, months = 3): Promise<AbcXyzResult[]> {
     const { from, to } = this.getDateRange(months);
 
     // Отримуємо продажі (Виручка рахується через priceAtSale)
@@ -121,6 +121,7 @@ export class AnalyticsService {
       .createQueryBuilder('si')
       .innerJoin('si.sale', 'sale')
       .where('sale.createdAt BETWEEN :from AND :to', { from, to })
+      .andWhere('sale.userId = :userId', { userId })
       .select([
         'si.productId AS "productId"',
         'si.productName AS "productName"',
@@ -132,16 +133,18 @@ export class AnalyticsService {
 
     if (!salesData.length) return [];
 
-    const products = await this.productRepo.find();
+    const products = await this.productRepo.find({ where: { userId } });
     const productMap = new Map(products.map((p) => [p.id, p]));
 
     // Збагачуємо дані собівартістю на стороні JS (найбезпечніший метод)
-    const enriched = salesData.map((r) => {
-      const productId = parseInt(r.productId);
+    const enriched = salesData.reduce<any[]>((acc, r) => {
+      const productId = Number(r.productId);
+      if (Number.isNaN(productId)) return acc;
+
       const prod: any = productMap.get(productId) || {};
 
-      const totalQty = parseInt(r.totalQty || '0');
-      const revenue = parseFloat(r.totalRevenue || '0');
+      const totalQty = Number(r.totalQty || 0);
+      const revenue = Number(r.totalRevenue || 0);
 
       // Гнучкий пошук полів (підтримує bidPrice або purchasePrice)
       const bidPrice = Number(prod.bidPrice ?? prod.purchasePrice ?? 0);
@@ -152,7 +155,7 @@ export class AnalyticsService {
       const profit = revenue - cost;
       const margin = revenue > 0 ? (profit / revenue) * 100 : 0;
 
-      return {
+      acc.push({
         productId,
         productName: r.productName as string,
         sku,
@@ -163,8 +166,10 @@ export class AnalyticsService {
         margin,
         currentStock,
         bidPrice,
-      };
-    });
+      });
+
+      return acc;
+    }, []);
 
     const totalRevenue = enriched.reduce((s, r) => s + r.totalRevenue, 0);
     const totalProfit = enriched.reduce((s, r) => s + r.grossProfit, 0);
@@ -207,7 +212,7 @@ export class AnalyticsService {
       });
     }
 
-    const monthlyData = await this.getMonthlySalesByProduct(months);
+    const monthlyData = await this.getMonthlySalesByProduct(userId, months);
     const totalDays = months * 30;
     const results: AbcXyzResult[] = [];
 
@@ -278,7 +283,7 @@ export class AnalyticsService {
   // ──────────────────────────────────────────────────────────────────────────────
   // 3. ПРОГНОЗ ПОПИТУ
   // ──────────────────────────────────────────────────────────────────────────────
-  async getForecast(months = 3): Promise<ForecastResult[]> {
+  async getForecast(userId: number, months = 3): Promise<ForecastResult[]> {
     const { from, to } = this.getDateRange(months);
     const totalDays = months * 30;
 
@@ -286,6 +291,7 @@ export class AnalyticsService {
       .createQueryBuilder('si')
       .innerJoin('si.sale', 'sale')
       .where('sale.createdAt BETWEEN :from AND :to', { from, to })
+      .andWhere('sale.userId = :userId', { userId })
       .select([
         'si.productId AS "productId"',
         'si.productName AS "productName"',
@@ -294,14 +300,15 @@ export class AnalyticsService {
       .groupBy('si.productId, si.productName')
       .getRawMany();
 
-    const products = await this.productRepo.find();
+    const products = await this.productRepo.find({ where: { userId } });
     const productMap = new Map(products.map((p) => [p.id, p]));
 
     const results: ForecastResult[] = [];
 
     for (const row of salesData) {
-      const productId = parseInt(row.productId);
-      const totalQty = parseInt(row.totalQty);
+      const productId = Number(row.productId);
+      if (Number.isNaN(productId)) continue;
+      const totalQty = Number(row.totalQty);
 
       const prod: any = productMap.get(productId) || {};
       const bidPrice = Number(prod.bidPrice ?? prod.purchasePrice ?? 0);
@@ -341,11 +348,14 @@ export class AnalyticsService {
   // 4. MARKET BASKET (Аналіз кошика)
   // ──────────────────────────────────────────────────────────────────────────────
   async getMarketBasketRules(
+    userId: number,
     minSupport = 0.1,
     minConfidence = 0.5,
   ): Promise<MarketBasketRule[]> {
     const saleIds = await this.saleItemRepo
       .createQueryBuilder('si')
+      .innerJoin('si.sale', 'sale')
+      .where('sale.userId = :userId', { userId })
       .select('si.saleId', 'saleId')
       .groupBy('si.saleId')
       .having('COUNT(si.id) > 1')
@@ -357,7 +367,9 @@ export class AnalyticsService {
 
     const items = await this.saleItemRepo
       .createQueryBuilder('si')
-      .where('si.saleId IN (:...ids)', { ids })
+      .innerJoin('si.sale', 'sale')
+      .where('sale.userId = :userId', { userId })
+      .andWhere('si.saleId IN (:...ids)', { ids })
       .select(['si.saleId', 'si.productId', 'si.productName'])
       .getMany();
 
@@ -430,6 +442,7 @@ export class AnalyticsService {
   }
 
   private async getMonthlySalesByProduct(
+    userId: number,
     months: number,
   ): Promise<Map<number, number[]>> {
     const { from, to } = this.getDateRange(months);
@@ -437,6 +450,7 @@ export class AnalyticsService {
       .createQueryBuilder('si')
       .innerJoin('si.sale', 'sale')
       .where('sale.createdAt BETWEEN :from AND :to', { from, to })
+      .andWhere('sale.userId = :userId', { userId })
       .select([
         'si.productId AS "productId"',
         "TO_CHAR(sale.createdAt, 'YYYY-MM') AS month",
@@ -448,9 +462,10 @@ export class AnalyticsService {
 
     const map = new Map<number, number[]>();
     for (const row of rows) {
-      const id = parseInt(row.productId);
+      const id = Number(row.productId);
+      if (Number.isNaN(id)) continue;
       if (!map.has(id)) map.set(id, []);
-      map.get(id)!.push(parseFloat(row.qty));
+      map.get(id)!.push(Number(row.qty));
     }
     return map;
   }

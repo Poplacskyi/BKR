@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Sidebar } from "../components/Sidebar";
+import api from "../api/axios";
 import {
   Download,
   Zap,
@@ -67,8 +68,7 @@ export default function AnalyticsPage() {
   const [forecastData, setForecastData] = useState<ForecastItem[]>([]);
   const [basketData, setBasketData] = useState<BasketRule[]>([]);
   const [loading, setLoading] = useState(false);
-
-  const API = import.meta.env.VITE_API_BASE_URL;
+  const [error, setError] = useState("");
 
   useEffect(() => {
     fetchAll();
@@ -76,21 +76,22 @@ export default function AnalyticsPage() {
 
   async function fetchAll() {
     setLoading(true);
+    setError("");
     try {
       const [abc, fc, bk] = await Promise.all([
-        fetch(`${API}/analytics/abc-xyz?months=${period}`).then((r) =>
-          r.json(),
-        ),
-        fetch(`${API}/analytics/forecast?months=${period}`).then((r) =>
-          r.json(),
-        ),
-        fetch(`${API}/analytics/market-basket`).then((r) => r.json()),
+        api.get<AbcXyzItem[]>(`/analytics/abc-xyz?months=${period}`),
+        api.get<ForecastItem[]>(`/analytics/forecast?months=${period}`),
+        api.get<BasketRule[]>(`/analytics/market-basket`),
       ]);
-      setAbcData(abc);
-      setForecastData(fc);
-      setBasketData(bk);
-    } catch (e) {
+      setAbcData(Array.isArray(abc.data) ? abc.data : []);
+      setForecastData(Array.isArray(fc.data) ? fc.data : []);
+      setBasketData(Array.isArray(bk.data) ? bk.data : []);
+    } catch (e: any) {
       console.error("Analytics fetch error:", e);
+      setError(e.response?.data?.message || "Не вдалося завантажити аналітику");
+      setAbcData([]);
+      setForecastData([]);
+      setBasketData([]);
     } finally {
       setLoading(false);
     }
@@ -110,9 +111,15 @@ export default function AnalyticsPage() {
   const needReorder = abcData.filter((d) => d.recommendedOrder > 0);
 
   async function takeSnapshot() {
-    await fetch(`${API}/analytics/snapshot`, { method: "POST" });
-    alert("Знімок залишків зроблено");
-    fetchAll();
+    try {
+      await api.post("/analytics/snapshot");
+      alert("Знімок залишків зроблено");
+      fetchAll();
+    } catch (e: any) {
+      alert(
+        e.response?.data?.message || "Помилка при створенні знімка залишків",
+      );
+    }
   }
 
   return (
@@ -161,6 +168,18 @@ export default function AnalyticsPage() {
               </button>
             </div>
           </div>
+
+          {error && (
+            <div className="rounded-lg bg-red-50 border border-red-200 p-4 text-sm text-red-700">
+              {error}
+            </div>
+          )}
+
+          {loading && (
+            <div className="rounded-lg bg-blue-50 border border-blue-200 p-4 text-sm text-blue-700">
+              Завантаження аналітики...
+            </div>
+          )}
 
           {/* ── KPI картки ── */}
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">

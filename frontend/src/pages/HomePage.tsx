@@ -1,9 +1,7 @@
-// src/pages/HomePage.tsx
 import React, { useEffect, useState } from "react";
 import {
-  Search,
-  Plus,
   TrendingUp,
+  LayoutDashboard,
   ChevronRight,
   ArrowUpRight,
 } from "lucide-react";
@@ -73,45 +71,28 @@ export const HomePage: React.FC = () => {
 
     loadDashboard();
   }, []);
+
   return (
     <div className="flex h-screen bg-gray-50 text-gray-900 font-sans overflow-hidden selection:bg-emerald-100 selection:text-emerald-900">
       <Sidebar />
 
       {/* --- ГОЛОВНИЙ КОНТЕНТ --- */}
       <main className="flex-1 flex flex-col h-screen overflow-y-auto z-10 relative">
+        {/* МІНІМАЛІСТИЧНА ВЕРХНЯ ПАНЕЛЬ (HEADER) */}
         {/* ВЕРХНЯ ПАНЕЛЬ (HEADER) */}
         <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-gray-200 px-8 py-4 flex justify-between items-center">
-          <div className="relative w-96 group">
-            <Search
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-              size={18}
-            />
-            <input
-              type="text"
-              placeholder="Пошук..."
-              className="w-full bg-gray-50 border border-gray-200 text-gray-900 rounded-lg py-2 pl-10 pr-4 text-sm focus:outline-none focus:border-emerald-700 focus:ring-1 focus:ring-emerald-700 transition-colors"
-            />
-          </div>
-
-          <div className="flex items-center gap-3">
-            <button className="flex items-center gap-2 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors">
-              Завантажити звіт
-            </button>
-            <button className="flex items-center gap-2 bg-emerald-800 hover:bg-emerald-900 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
-              <Plus size={16} />
-              Новий запис
-            </button>
-          </div>
+          <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+            <LayoutDashboard className="text-emerald-700" size={24} />
+            Дашборд
+          </h1>
         </header>
 
         <div className="p-8 space-y-6 max-w-[1600px] mx-auto w-full">
           <div className="mb-2">
-            <h2 className="text-2xl font-bold text-gray-900">Дашборд</h2>
             <p className="text-sm text-gray-500 mt-1">
               Огляд ключових показників за поточний період.
             </p>
           </div>
-
           {error && (
             <div className="rounded-2xl bg-red-50 border border-red-100 p-4 text-sm text-red-700">
               {error}
@@ -261,7 +242,7 @@ export const HomePage: React.FC = () => {
                   Увага по запасах
                 </h2>
                 <span className="bg-red-50 text-red-600 text-xs font-bold px-2 py-1 rounded-full">
-                  3 позиції
+                  {lowStockAlerts.length} позицій
                 </span>
               </div>
 
@@ -330,37 +311,49 @@ export const HomePage: React.FC = () => {
                         </td>
                       </tr>
                     ) : (
-                      topProducts.map((product) => (
-                        <tr
-                          key={product.id}
-                          className="hover:bg-gray-50 transition-colors"
-                        >
-                          <td className="px-6 py-3.5 font-medium text-gray-900">
-                            {product.name}
-                          </td>
-                          <td className="px-6 py-3.5 text-gray-600">
-                            {product.sales} од.
-                          </td>
-                          <td className="px-6 py-3.5 text-gray-900 font-medium">
-                            {product.revenue}
-                          </td>
-                          <td className="px-6 py-3.5">
-                            <div className="flex items-center gap-3">
-                              <div className="w-24 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                      topProducts.map((product) => {
+                        // Рахуємо відсоток залишку від початкової кількості
+                        const initialStock = product.stock + product.sales;
+                        const stockPercentage =
+                          initialStock > 0
+                            ? Math.round((product.stock / initialStock) * 100)
+                            : 0;
+
+                        return (
+                          <tr
+                            key={product.id}
+                            className="hover:bg-gray-50 transition-colors"
+                          >
+                            <td className="px-6 py-3.5 font-medium text-gray-900">
+                              {product.name}
+                            </td>
+                            <td className="px-6 py-3.5 text-gray-600">
+                              {product.sales} од.
+                            </td>
+                            <td className="px-6 py-3.5 text-gray-900 font-medium">
+                              {product.revenue.toLocaleString("uk-UA")} ₴
+                            </td>
+                            <td className="px-6 py-3.5">
+                              <div className="flex items-center gap-3">
                                 <div
-                                  className={`h-full rounded-full ${product.stock < 25 ? "bg-amber-500" : "bg-emerald-600"}`}
-                                  style={{
-                                    width: `${Math.min(product.stock, 100)}%`,
-                                  }}
-                                ></div>
+                                  className="w-24 h-1.5 bg-gray-100 rounded-full overflow-hidden"
+                                  title={`${product.stock} з ${initialStock} од.`}
+                                >
+                                  <div
+                                    className={`h-full rounded-full transition-all ${stockPercentage < 25 ? "bg-amber-500" : "bg-emerald-600"}`}
+                                    style={{
+                                      width: `${stockPercentage}%`,
+                                    }}
+                                  ></div>
+                                </div>
+                                <span className="text-xs text-gray-500 w-8 font-medium">
+                                  {stockPercentage}%
+                                </span>
                               </div>
-                              <span className="text-xs text-gray-500 w-8">
-                                {product.stock}%
-                              </span>
-                            </div>
-                          </td>
-                        </tr>
-                      ))
+                            </td>
+                          </tr>
+                        );
+                      })
                     )}
                   </tbody>
                 </table>
