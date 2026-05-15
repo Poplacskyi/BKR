@@ -40,19 +40,19 @@ import { StockHistory } from './stock-history/stock-history.entity';
               rejectUnauthorized: false,
             },
           };
+        } else {
+          // Якщо dbUrl НЕМАЄ (ми локально на комп'ютері)
+          return {
+            type: 'postgres',
+            host: 'localhost',
+            port: 5432,
+            username: 'postgres',
+            password: 'root', // Ваш локальний пароль
+            database: 'my_database', // Ваша локальна БД
+            entities: [User, Product, Sale, SaleItem, StockHistory],
+            synchronize: true,
+          };
         }
-
-        // Якщо dbUrl НЕМАЄ (ми локально на комп'ютері)
-        return {
-          type: 'postgres',
-          host: 'localhost',
-          port: 5432,
-          username: 'postgres',
-          password: 'root', // Ваш локальний пароль
-          database: 'my_database', // Ваша локальна БД
-          entities: [User, Product, Sale, SaleItem, StockHistory],
-          synchronize: true,
-        };
       },
     }),
 
