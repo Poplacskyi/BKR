@@ -1,13 +1,23 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
+import { ConfigService } from '@nestjs/config';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-  const frontendUrl = process.env.FRONTEND_URL; // Заміни на адресу твого фронтенду
+  const configService = app.get(ConfigService);
+  const frontendUrl = configService.get<string>('FRONTEND_URL');
 
-  // Обов'язково вмикаємо CORS, щоб ваш React-фронтенд міг робити запити сюди
+  if (!frontendUrl) {
+    throw new Error('FRONTEND_URL is not defined in .env');
+  }
+
+  const allowedOrigins = frontendUrl
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+
   app.enableCors({
-    origin: frontendUrl, // Точна адреса твого фронтенду
+    origin: allowedOrigins,
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,
   });
