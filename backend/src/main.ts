@@ -3,10 +3,11 @@ import { AppModule } from './app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  const frontendUrl = process.env.FRONTEND_URL; // Заміни на адресу твого фронтенду
 
   // Обов'язково вмикаємо CORS, щоб ваш React-фронтенд міг робити запити сюди
   app.enableCors({
-    origin: 'https://diligent-renewal-production-ebf0.up.railway.app', // Точна адреса твого фронтенду
+    origin: frontendUrl, // Точна адреса твого фронтенду
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,
   });
