@@ -1,10 +1,16 @@
-import { Controller, Get, Query, Post, UseGuards } from '@nestjs/common';
+import { Controller, Get, Query, Post, UseGuards, Req } from '@nestjs/common';
 import { AnalyticsService } from './analytics.service';
 import { StockHistoryService } from '../stock-history/stock-history.service';
-// import { JwtAuthGuard } from '../auth/jwt-auth.guard'; // розкоментуйте якщо є JWT
+import { AuthGuard } from '@nestjs/passport';
+import { Request } from 'express';
+
+// Додаємо правильний інтерфейс, як у SalesController
+interface RequestWithUser extends Request {
+  user: { userId: number; email: string };
+}
 
 @Controller('analytics')
-// @UseGuards(JwtAuthGuard)
+@UseGuards(AuthGuard('jwt'))
 export class AnalyticsController {
   constructor(
     private readonly analyticsService: AnalyticsService,
@@ -16,8 +22,13 @@ export class AnalyticsController {
    * Повна ABC/XYZ матриця з рекомендаціями закупівель
    */
   @Get('abc-xyz')
-  async getAbcXyz(@Query('months') months?: string) {
+  async getAbcXyz(
+    @Req() req: RequestWithUser,
+    @Query('months') months?: string,
+  ) {
+    const userId = req.user.userId; // ВИПРАВЛЕНО: тепер ми беремо правильний userId
     return this.analyticsService.getAbcXyzAnalysis(
+      userId,
       months ? parseInt(months) : 3,
     );
   }
@@ -27,8 +38,15 @@ export class AnalyticsController {
    * Прогноз попиту по кожному товару з OOS-компенсацією
    */
   @Get('forecast')
-  async getForecast(@Query('months') months?: string) {
-    return this.analyticsService.getForecast(months ? parseInt(months) : 3);
+  async getForecast(
+    @Req() req: RequestWithUser,
+    @Query('months') months?: string,
+  ) {
+    const userId = req.user.userId; // ВИПРАВЛЕНО
+    return this.analyticsService.getForecast(
+      userId,
+      months ? parseInt(months) : 3,
+    );
   }
 
   /**
@@ -37,10 +55,13 @@ export class AnalyticsController {
    */
   @Get('market-basket')
   async getMarketBasket(
+    @Req() req: RequestWithUser,
     @Query('minSupport') minSupport?: string,
     @Query('minConfidence') minConfidence?: string,
   ) {
+    const userId = req.user.userId; // ВИПРАВЛЕНО
     return this.analyticsService.getMarketBasketRules(
+      userId,
       minSupport ? parseFloat(minSupport) : 0.1,
       minConfidence ? parseFloat(minConfidence) : 0.5,
     );
