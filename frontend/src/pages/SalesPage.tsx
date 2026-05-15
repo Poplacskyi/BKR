@@ -296,7 +296,7 @@ export const SalesPage: React.FC = () => {
                     </div>
 
                     <div className="space-y-1.5">
-                      {sale.items.map((item, idx) => (
+                      {sale.items?.map((item, idx) => (
                         <div key={idx} className="flex justify-between text-sm">
                           <p className="text-gray-700 truncate pr-4">
                             <span className="text-gray-400 text-xs mr-2">
