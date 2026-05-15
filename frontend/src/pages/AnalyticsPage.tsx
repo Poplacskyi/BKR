@@ -68,7 +68,7 @@ export default function AnalyticsPage() {
   const [basketData, setBasketData] = useState<BasketRule[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const API = import.meta.env.API_BASE_URL;
+  const API = import.meta.env.VITE_API_BASE_URL;
 
   useEffect(() => {
     fetchAll();

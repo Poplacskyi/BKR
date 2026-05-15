@@ -2,7 +2,7 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: "https://bkr-production.up.railway.app", // Адреса вашого бекенду
+  baseURL: import.meta.env.VITE_API_BASE_URL, // Адреса вашого бекенду
 });
 
 // Додаємо інтерцептор, який автоматично чіпляє токен до кожного запиту
