@@ -1,5 +1,4 @@
-// src/pages/SalesPage.tsx
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import {
   Search,
   Plus,
@@ -12,6 +11,7 @@ import {
   AlertCircle,
   CheckCircle2,
   PackageX,
+  Edit2,
 } from "lucide-react";
 import { Sidebar } from "../components/Sidebar";
 import api from "../api/axios";
@@ -21,12 +21,13 @@ interface Product {
   id: number;
   name: string;
   sku: string;
-  askPrice: number; // Ціна продажу
+  askPrice: number;
   stock: number;
 }
 
 interface SaleItem {
   id: number;
+  productId: number;
   productName: string;
   quantity: number;
   priceAtSale: number;
@@ -42,22 +43,23 @@ interface Sale {
 interface CartItem {
   product: Product;
   quantity: number;
+  customPrice: number; // ДОДАНО: Своя ціна в кошику
 }
 
-export const SalesPage: React.FC = () => {
-  // Стани для даних з БД
+export const SalesPage = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [salesHistory, setSalesHistory] = useState<Sale[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Стани для терміналу (POS)
   const [cart, setCart] = useState<CartItem[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
 
-  // Завантаження бази
+  // ДОДАНО: Стан для режиму редагування
+  const [editingSaleId, setEditingSaleId] = useState<number | null>(null);
+
   useEffect(() => {
     fetchData();
   }, []);
@@ -78,7 +80,6 @@ export const SalesPage: React.FC = () => {
     }
   };
 
-  // --- ЛОГІКА КОШИКА ---
   const filteredProducts =
     searchQuery.trim() === ""
       ? []
@@ -88,14 +89,14 @@ export const SalesPage: React.FC = () => {
               p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
               p.sku.toLowerCase().includes(searchQuery.toLowerCase()),
           )
-          .slice(0, 5); // Показуємо тільки топ-5 результатів у пошуку
+          .slice(0, 5);
 
   const addToCart = (product: Product) => {
     setError("");
     setSuccessMsg("");
-    setSearchQuery(""); // Очищаємо пошук після вибору
+    setSearchQuery("");
 
-    if (product.stock <= 0) {
+    if (product.stock <= 0 && !editingSaleId) {
       setError(`Товар "${product.name}" закінчився на складі.`);
       return;
     }
@@ -103,19 +104,17 @@ export const SalesPage: React.FC = () => {
     setCart((prev) => {
       const existing = prev.find((item) => item.product.id === product.id);
       if (existing) {
-        if (existing.quantity >= product.stock) {
-          setError(
-            `На складі є лише ${product.stock} од. товару "${product.name}".`,
-          );
-          return prev;
-        }
         return prev.map((item) =>
           item.product.id === product.id
             ? { ...item, quantity: item.quantity + 1 }
             : item,
         );
       }
-      return [...prev, { product, quantity: 1 }];
+      // При додаванні товару ставимо стандартну ціну (askPrice)
+      return [
+        ...prev,
+        { product, quantity: 1, customPrice: Number(product.askPrice) },
+      ];
     });
   };
 
@@ -125,15 +124,23 @@ export const SalesPage: React.FC = () => {
       prev.map((item) => {
         if (item.product.id === productId) {
           const newQty = item.quantity + delta;
-          if (newQty <= 0) return item; // Кількість не може бути <= 0 через цю кнопку (для цього є видалення)
-          if (newQty > item.product.stock) {
-            setError(`Максимальний залишок: ${item.product.stock} од.`);
-            return item;
-          }
+          if (newQty <= 0) return item;
           return { ...item, quantity: newQty };
         }
         return item;
       }),
+    );
+  };
+
+  // ДОДАНО: Функція оновлення ціни товару в кошику
+  const updateCustomPrice = (productId: number, newPrice: string) => {
+    const parsedPrice = parseFloat(newPrice);
+    setCart((prev) =>
+      prev.map((item) =>
+        item.product.id === productId
+          ? { ...item, customPrice: isNaN(parsedPrice) ? 0 : parsedPrice }
+          : item,
+      ),
     );
   };
 
@@ -142,11 +149,40 @@ export const SalesPage: React.FC = () => {
   };
 
   const cartTotal = cart.reduce(
-    (sum, item) => sum + item.product.askPrice * item.quantity,
+    (sum, item) => sum + item.customPrice * item.quantity,
     0,
   );
 
-  // --- ОФОРМЛЕННЯ ПРОДАЖУ ---
+  // ДОДАНО: Функція завантаження чека в кошик для редагування
+  const loadSaleForEdit = (sale: Sale) => {
+    setEditingSaleId(sale.id);
+    const loadedCart =
+      sale.items?.map((item) => {
+        // Знаходимо оригінальний продукт, щоб знати його залишки
+        const product = products.find((p) => p.id === item.productId) || {
+          id: item.productId,
+          name: item.productName,
+          sku: "N/A",
+          askPrice: item.priceAtSale,
+          stock: 999, // Якщо товар видалено, дозволяємо редагувати
+        };
+
+        return {
+          product: product as Product,
+          quantity: item.quantity,
+          customPrice: Number(item.priceAtSale),
+        };
+      }) || [];
+
+    setCart(loadedCart);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const cancelEdit = () => {
+    setEditingSaleId(null);
+    setCart([]);
+  };
+
   const handleCheckout = async () => {
     if (cart.length === 0) return;
 
@@ -158,26 +194,33 @@ export const SalesPage: React.FC = () => {
         items: cart.map((item) => ({
           productId: item.product.id,
           quantity: item.quantity,
+          priceAtSale: item.customPrice, // Відправляємо кастомну ціну на бекенд!
         })),
       };
 
-      await api.post("/sales", payload);
+      if (editingSaleId) {
+        // Оновлюємо існуючий
+        await api.patch(`/sales/${editingSaleId}`, payload);
+        setSuccessMsg("Чек успішно оновлено!");
+        setEditingSaleId(null);
+      } else {
+        // Створюємо новий
+        await api.post("/sales", payload);
+        setSuccessMsg("Продаж успішно проведено!");
+      }
 
-      setSuccessMsg("Продаж успішно проведено!");
-      setCart([]); // Очищуємо кошик
-      fetchData(); // Оновлюємо історію та залишки товарів
-
-      setTimeout(() => setSuccessMsg(""), 3000); // Ховаємо повідомлення через 3 сек
+      setCart([]);
+      fetchData();
+      setTimeout(() => setSuccessMsg(""), 3000);
     } catch (err: any) {
       setError(
-        err.response?.data?.message || "Сталася помилка при створенні чека.",
+        err.response?.data?.message || "Сталася помилка при обробці чека.",
       );
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // --- СТАТИСТИКА ЗА СЬОГОДНІ ---
   const today = new Date().toDateString();
   const todaysSales = salesHistory.filter(
     (s) => new Date(s.createdAt).toDateString() === today,
@@ -226,17 +269,13 @@ export const SalesPage: React.FC = () => {
         <div className="flex-1 flex overflow-hidden p-6 gap-6 max-w-[1800px] mx-auto w-full">
           {/* ================= ЛІВА ЧАСТИНА: ЖУРНАЛ ================= */}
           <div className="flex-1 flex flex-col min-w-[500px] bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
-            {/* Міні-статистика */}
             <div className="grid grid-cols-2 divide-x divide-gray-100 border-b border-gray-100 bg-gray-50/50 shrink-0">
               <div className="p-5">
                 <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1 flex items-center gap-1.5">
                   <TrendingUp size={14} /> Виторг сьогодні
                 </p>
                 <p className="text-2xl font-black text-emerald-800">
-                  {todaysRevenue.toLocaleString("uk-UA", {
-                    minimumFractionDigits: 2,
-                  })}{" "}
-                  ₴
+                  {todaysRevenue.toLocaleString("uk-UA")} ₴
                 </p>
               </div>
               <div className="p-5">
@@ -249,12 +288,10 @@ export const SalesPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Список транзакцій */}
             <div className="flex-1 overflow-y-auto p-5 space-y-4 bg-gray-50">
               <h3 className="text-sm font-bold text-gray-900 mb-2">
                 Історія операцій
               </h3>
-
               {isLoading ? (
                 <p className="text-center text-gray-400 py-10 text-sm italic">
                   Завантаження бази...
@@ -262,15 +299,13 @@ export const SalesPage: React.FC = () => {
               ) : salesHistory.length === 0 ? (
                 <div className="text-center py-12">
                   <Receipt size={48} className="mx-auto text-gray-200 mb-3" />
-                  <p className="text-gray-500 text-sm">
-                    Транзакцій ще немає. Зробіть перший продаж!
-                  </p>
+                  <p className="text-gray-500 text-sm">Транзакцій ще немає.</p>
                 </div>
               ) : (
                 salesHistory.map((sale) => (
                   <div
                     key={sale.id}
-                    className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm hover:border-emerald-200 transition-colors"
+                    className={`bg-white border ${editingSaleId === sale.id ? "border-amber-400 shadow-md ring-2 ring-amber-400/20" : "border-gray-200 hover:border-emerald-200"} rounded-xl p-4 shadow-sm transition-all`}
                   >
                     <div className="flex justify-between items-start mb-3 border-b border-gray-50 pb-3">
                       <div>
@@ -282,19 +317,24 @@ export const SalesPage: React.FC = () => {
                           {new Date(sale.createdAt).toLocaleString("uk-UA")}
                         </p>
                       </div>
-                      <div className="text-right">
-                        <p className="text-xs text-gray-500 uppercase font-bold tracking-widest">
-                          Чек #{sale.id}
-                        </p>
-                        <p className="text-lg font-black text-gray-900 mt-0.5">
-                          {Number(sale.totalAmount).toLocaleString("uk-UA", {
-                            minimumFractionDigits: 2,
-                          })}{" "}
-                          ₴
-                        </p>
+                      <div className="flex flex-col items-end gap-2">
+                        <div className="text-right">
+                          <p className="text-xs text-gray-500 uppercase font-bold tracking-widest">
+                            Чек #{sale.id}
+                          </p>
+                          <p className="text-lg font-black text-gray-900 mt-0.5">
+                            {Number(sale.totalAmount).toLocaleString("uk-UA")} ₴
+                          </p>
+                        </div>
+                        {/* ДОДАНО: Кнопка редагування */}
+                        <button
+                          onClick={() => loadSaleForEdit(sale)}
+                          className="flex items-center gap-1 text-xs font-medium text-amber-600 hover:text-amber-800 bg-amber-50 hover:bg-amber-100 px-2 py-1 rounded transition-colors"
+                        >
+                          <Edit2 size={12} /> Змінити
+                        </button>
                       </div>
                     </div>
-
                     <div className="space-y-1.5">
                       {sale.items?.map((item, idx) => (
                         <div key={idx} className="flex justify-between text-sm">
@@ -319,9 +359,23 @@ export const SalesPage: React.FC = () => {
             </div>
           </div>
 
-          {/* ================= ПРАВА ЧАСТИНА: ТЕРМІНАЛ (КОШИК) ================= */}
-          <div className="w-[450px] flex flex-col bg-white border border-gray-200 rounded-2xl shadow-xl overflow-hidden shrink-0">
-            {/* Пошук товарів */}
+          {/* ================= ПРАВА ЧАСТИНА: ТЕРМІНАЛ ================= */}
+          <div className="w-[480px] flex flex-col bg-white border border-gray-200 rounded-2xl shadow-xl overflow-hidden shrink-0">
+            {/* Блок попередження про режим редагування */}
+            {editingSaleId && (
+              <div className="bg-amber-100 px-5 py-3 border-b border-amber-200 flex justify-between items-center z-30">
+                <p className="text-amber-800 text-sm font-bold flex items-center gap-2">
+                  <Edit2 size={16} /> Редагування чеку #{editingSaleId}
+                </p>
+                <button
+                  onClick={cancelEdit}
+                  className="text-amber-700 hover:text-amber-900 text-xs font-medium bg-amber-200/50 px-2 py-1 rounded"
+                >
+                  Скасувати
+                </button>
+              </div>
+            )}
+
             <div className="p-5 border-b border-gray-100 bg-white relative shrink-0 z-20">
               <div className="relative">
                 <Search
@@ -330,14 +384,12 @@ export const SalesPage: React.FC = () => {
                 />
                 <input
                   type="text"
-                  placeholder="Пошук (назва або SKU)..."
+                  placeholder="Пошук товару..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full bg-gray-50 border border-gray-200 rounded-xl py-3 pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-800/20 focus:border-emerald-800 transition-all font-medium"
                 />
               </div>
-
-              {/* Результати пошуку (Dropdown) */}
               {searchQuery && (
                 <div className="absolute top-[calc(100%-10px)] left-5 right-5 bg-white border border-gray-200 shadow-2xl rounded-xl overflow-hidden z-30">
                   {filteredProducts.length > 0 ? (
@@ -345,11 +397,11 @@ export const SalesPage: React.FC = () => {
                       <button
                         key={product.id}
                         onClick={() => addToCart(product)}
-                        disabled={product.stock <= 0}
+                        disabled={product.stock <= 0 && !editingSaleId}
                         className="w-full text-left px-4 py-3 flex justify-between items-center hover:bg-gray-50 border-b border-gray-50 last:border-0 transition-colors disabled:opacity-50 disabled:cursor-not-allowed group"
                       >
                         <div>
-                          <p className="text-sm font-bold text-gray-900 group-hover:text-emerald-800 transition-colors">
+                          <p className="text-sm font-bold text-gray-900">
                             {product.name}
                           </p>
                           <p className="text-xs text-gray-500 font-mono mt-0.5">
@@ -361,7 +413,7 @@ export const SalesPage: React.FC = () => {
                             {Number(product.askPrice).toLocaleString()} ₴
                           </p>
                           <p
-                            className={`text-[10px] font-bold uppercase tracking-wider mt-0.5 ${product.stock > 0 ? "text-emerald-600" : "text-red-500"}`}
+                            className={`text-[10px] font-bold uppercase mt-0.5 ${product.stock > 0 ? "text-emerald-600" : "text-red-500"}`}
                           >
                             {product.stock > 0
                               ? `Залишок: ${product.stock}`
@@ -379,7 +431,6 @@ export const SalesPage: React.FC = () => {
               )}
             </div>
 
-            {/* Вміст кошика */}
             <div className="flex-1 overflow-y-auto p-2 bg-gray-50/30">
               {cart.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center text-gray-400 space-y-3">
@@ -391,20 +442,39 @@ export const SalesPage: React.FC = () => {
                   {cart.map((item) => (
                     <div
                       key={item.product.id}
-                      className="bg-white border border-gray-100 rounded-xl p-3 flex items-center justify-between shadow-sm group"
+                      className="bg-white border border-gray-100 rounded-xl p-3 flex flex-col shadow-sm group relative"
                     >
-                      <div className="flex-1 min-w-0 pr-4">
-                        <h4 className="text-sm font-bold text-gray-900 truncate">
-                          {item.product.name}
-                        </h4>
-                        <p className="text-xs text-gray-500 mt-0.5">
-                          {Number(item.product.askPrice).toLocaleString()} ₴ /
-                          шт.
-                        </p>
+                      <div className="flex justify-between items-start mb-3">
+                        <div className="flex-1 pr-4">
+                          <h4 className="text-sm font-bold text-gray-900">
+                            {item.product.name}
+                          </h4>
+                          {/* ДОДАНО: Інпут для редагування ціни */}
+                          <div className="flex items-center gap-2 mt-2">
+                            <span className="text-xs text-gray-400">Ціна:</span>
+                            <input
+                              type="number"
+                              value={item.customPrice || ""}
+                              onChange={(e) =>
+                                updateCustomPrice(
+                                  item.product.id,
+                                  e.target.value,
+                                )
+                              }
+                              className="w-20 px-2 py-1 text-xs border border-gray-200 rounded bg-gray-50 focus:outline-none focus:border-emerald-500"
+                            />
+                            <span className="text-xs text-gray-500">₴/шт</span>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => removeFromCart(item.product.id)}
+                          className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors absolute top-2 right-2"
+                        >
+                          <X size={16} />
+                        </button>
                       </div>
 
-                      <div className="flex items-center gap-3 shrink-0">
-                        {/* Кнопки +/- */}
+                      <div className="flex justify-between items-center border-t border-gray-50 pt-2">
                         <div className="flex items-center bg-gray-50 border border-gray-200 rounded-lg overflow-hidden">
                           <button
                             onClick={() => updateQuantity(item.product.id, -1)}
@@ -422,22 +492,10 @@ export const SalesPage: React.FC = () => {
                             <Plus size={14} />
                           </button>
                         </div>
-
-                        <div className="w-16 text-right">
-                          <p className="text-sm font-bold text-gray-900">
-                            {(
-                              item.product.askPrice * item.quantity
-                            ).toLocaleString()}{" "}
-                            ₴
-                          </p>
-                        </div>
-
-                        <button
-                          onClick={() => removeFromCart(item.product.id)}
-                          className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors opacity-0 group-hover:opacity-100"
-                        >
-                          <X size={16} />
-                        </button>
+                        <p className="text-sm font-bold text-emerald-800">
+                          {(item.customPrice * item.quantity).toLocaleString()}{" "}
+                          ₴
+                        </p>
                       </div>
                     </div>
                   ))}
@@ -445,7 +503,6 @@ export const SalesPage: React.FC = () => {
               )}
             </div>
 
-            {/* Підсумки та Кнопка (Footer) */}
             <div className="p-6 bg-white border-t border-gray-200 shadow-[0_-10px_30px_rgba(0,0,0,0.02)] shrink-0">
               <div className="flex justify-between items-end mb-6">
                 <div>
@@ -453,13 +510,11 @@ export const SalesPage: React.FC = () => {
                     До сплати
                   </p>
                   <p className="text-[10px] text-gray-400 mt-1">
-                    Позицій у чеку: {cart.length}
+                    Позицій: {cart.length}
                   </p>
                 </div>
                 <h2 className="text-4xl font-black text-gray-900">
-                  {cartTotal.toLocaleString("uk-UA", {
-                    minimumFractionDigits: 2,
-                  })}{" "}
+                  {cartTotal.toLocaleString("uk-UA")}{" "}
                   <span className="text-xl text-gray-400">₴</span>
                 </h2>
               </div>
@@ -467,10 +522,14 @@ export const SalesPage: React.FC = () => {
               <button
                 onClick={handleCheckout}
                 disabled={cart.length === 0 || isSubmitting}
-                className="w-full py-4 bg-emerald-800 hover:bg-emerald-900 text-white rounded-xl text-lg font-bold shadow-lg shadow-emerald-800/20 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100 flex items-center justify-center gap-2"
+                className={`w-full py-4 text-white rounded-xl text-lg font-bold shadow-lg transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${editingSaleId ? "bg-amber-600 hover:bg-amber-700 shadow-amber-600/20" : "bg-emerald-800 hover:bg-emerald-900 shadow-emerald-800/20"}`}
               >
                 {isSubmitting ? (
-                  <span className="animate-pulse">Обробка транзакції...</span>
+                  <span className="animate-pulse">Обробка...</span>
+                ) : editingSaleId ? (
+                  <>
+                    Зберегти зміни <Edit2 size={20} />
+                  </>
                 ) : (
                   <>
                     Оформити чек <CheckCircle2 size={20} />

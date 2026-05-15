@@ -1,7 +1,14 @@
-// src/sales/sales.controller.ts
-import { Controller, Post, Get, Body, UseGuards, Req } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Get,
+  Patch,
+  Param,
+  Body,
+  UseGuards,
+  Req,
+} from '@nestjs/common';
 import { SalesService } from './sales.service';
-import { CreateSaleDto } from './dto/create-sale.dto';
 import { AuthGuard } from '@nestjs/passport';
 import { Request } from 'express';
 
@@ -15,8 +22,17 @@ export class SalesController {
   constructor(private readonly salesService: SalesService) {}
 
   @Post()
-  create(@Body() createSaleDto: CreateSaleDto, @Req() req: RequestWithUser) {
+  create(@Body() createSaleDto: any, @Req() req: RequestWithUser) {
     return this.salesService.createSale(createSaleDto, req.user.userId);
+  }
+
+  @Patch(':id')
+  update(
+    @Param('id') id: string,
+    @Body() updateSaleDto: any,
+    @Req() req: RequestWithUser,
+  ) {
+    return this.salesService.updateSale(+id, updateSaleDto, req.user.userId);
   }
 
   @Get()
