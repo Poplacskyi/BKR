@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Sidebar } from "../components/Sidebar";
+import { useCurrency } from "../context/CurrencyContext";
 import api from "../api/axios";
 import {
   Download,
@@ -69,6 +70,7 @@ export default function AnalyticsPage() {
   const [basketData, setBasketData] = useState<BasketRule[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const { format } = useCurrency();
 
   useEffect(() => {
     fetchAll();
@@ -186,26 +188,26 @@ export default function AnalyticsPage() {
             <KpiCard
               icon={<TrendingUp size={20} />}
               label="Загальна виручка"
-              value={`₴ ${totalRevenue.toLocaleString("uk-UA")}`}
+              value={format(totalRevenue)}
               sub={`Оборот за ${period} міс.`}
             />
             <KpiCard
               icon={<DollarSign size={20} />}
               label="Валовий прибуток"
-              value={`₴ ${totalProfit.toLocaleString("uk-UA")}`}
+              value={format(totalProfit)}
               sub={`Середня маржа: ${avgMargin.toFixed(1)}%`}
               isSuccess={true}
             />
             <KpiCard
               icon={<PackageSearch size={20} />}
               label="Заморожено в запасах"
-              value={`₴ ${totalStockValue.toLocaleString("uk-UA")}`}
+              value={format(totalStockValue)}
               sub="Закупівельна вартість складу"
             />
             <KpiCard
               icon={<Wallet size={20} />}
               label="Бюджет на закупівлю"
-              value={`₴ ${totalOrderCost.toLocaleString("uk-UA")}`}
+              value={format(totalOrderCost)}
               sub={`${needReorder.length} позицій потребують поповнення`}
               isAlert={needReorder.length > 0}
             />
@@ -287,10 +289,10 @@ export default function AnalyticsPage() {
                                 )}
                               </td>
                               <td className="px-6 py-3.5 text-gray-700 font-medium">
-                                ₴ {d.totalRevenue.toLocaleString("uk-UA")}
+                                {format(d.totalRevenue)}
                               </td>
                               <td className="px-6 py-3.5 text-emerald-700 font-bold">
-                                ₴ {d.grossProfit.toLocaleString("uk-UA")}
+                                {format(d.grossProfit)}
                               </td>
                               <td className="px-6 py-3.5">
                                 <span
@@ -304,7 +306,7 @@ export default function AnalyticsPage() {
                                   {d.currentStock} од.
                                 </p>
                                 <p className="text-xs text-gray-500">
-                                  ₴ {d.stockValue.toLocaleString("uk-UA")}
+                                  {format(d.stockValue)}
                                 </p>
                               </td>
                               <td className="px-6 py-3.5">
@@ -314,10 +316,7 @@ export default function AnalyticsPage() {
                                       +{d.recommendedOrder} од.
                                     </span>
                                     <p className="text-xs text-amber-600 font-medium mt-1">
-                                      ₴{" "}
-                                      {d.recommendedOrderCost.toLocaleString(
-                                        "uk-UA",
-                                      )}
+                                      {format(d.recommendedOrderCost)}
                                     </p>
                                   </div>
                                 ) : (
@@ -383,11 +382,10 @@ export default function AnalyticsPage() {
                                   {d.forecastNextMonth} од.
                                 </td>
                                 <td className="px-6 py-3.5 text-gray-600">
-                                  ₴{" "}
-                                  {d.forecastedRevenue.toLocaleString("uk-UA")}
+                                  {format(d.forecastedRevenue)}
                                 </td>
                                 <td className="px-6 py-3.5 text-emerald-700 font-bold">
-                                  ₴ {d.forecastedProfit.toLocaleString("uk-UA")}
+                                  {format(d.forecastedProfit)}
                                 </td>
                                 <td className={`px-6 py-3.5 ${stockClass}`}>
                                   {daysLeftStr}

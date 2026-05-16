@@ -15,6 +15,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { Sidebar } from "../components/Sidebar";
+import { useCurrency } from "../context/CurrencyContext";
 import {
   fetchDashboardData,
   buildMetricCards,
@@ -45,6 +46,7 @@ export const HomePage: React.FC = () => {
   const [lowStockAlerts, setLowStockAlerts] = useState<LowStockAlert[]>([]);
   const [topProducts, setTopProducts] = useState<TopProduct[]>([]);
   const [activityFeed, setActivityFeed] = useState<ActivityFeedItem[]>([]);
+  const { format, symbol } = useCurrency();
 
   useEffect(() => {
     const loadDashboard = async () => {
@@ -106,9 +108,7 @@ export const HomePage: React.FC = () => {
                 Загальний дохід
               </p>
               <h3 className="text-2xl font-bold text-gray-900">
-                {isLoading
-                  ? "..."
-                  : `₴ ${metrics.totalRevenue.toLocaleString("uk-UA", { minimumFractionDigits: 2 })}`}
+                {isLoading ? "..." : format(metrics.totalRevenue)}
               </h3>
               <p className="text-emerald-600 mt-2 flex items-center gap-1 text-xs font-medium">
                 <TrendingUp size={14} /> +12.5% з минулого місяця
@@ -145,9 +145,7 @@ export const HomePage: React.FC = () => {
                 Чистий прибуток
               </p>
               <h3 className="text-2xl font-bold text-emerald-800">
-                {isLoading
-                  ? "..."
-                  : `₴ ${metrics.profit.toLocaleString("uk-UA", { minimumFractionDigits: 2 })}`}
+                {isLoading ? "..." : format(metrics.profit)}
               </h3>
               <p className="text-emerald-700 mt-2 flex items-center gap-1 text-xs font-medium">
                 Рентабельність: {metrics.profitMargin * 100}%
@@ -161,7 +159,7 @@ export const HomePage: React.FC = () => {
             <div className="xl:col-span-2 bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-base font-bold text-gray-900">
-                  Динаміка продажів (тис. ₴)
+                  Динаміка продажів (тис. {symbol})
                 </h2>
                 <select className="bg-gray-50 border border-gray-200 text-sm text-gray-700 rounded-lg px-3 py-1.5 focus:outline-none focus:border-emerald-700">
                   <option>Останні 30 днів</option>
@@ -331,7 +329,7 @@ export const HomePage: React.FC = () => {
                               {product.sales} од.
                             </td>
                             <td className="px-6 py-3.5 text-gray-900 font-medium">
-                              {product.revenue.toLocaleString("uk-UA")} ₴
+                              {format(product.revenue)}
                             </td>
                             <td className="px-6 py-3.5">
                               <div className="flex items-center gap-3">

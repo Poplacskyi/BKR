@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Search, Plus, Edit2, Trash2, X, AlertCircle, Tag } from "lucide-react";
 import { Sidebar } from "../components/Sidebar";
+import { useCurrency } from "../context/CurrencyContext";
 import api from "../api/axios";
 
 // --- ІНТЕРФЕЙСИ ---
@@ -23,6 +24,7 @@ export const InventoryPage: React.FC = () => {
   const [filterField, setFilterField] = useState<
     "name" | "sku" | "stock" | "askPrice" | "category"
   >("name");
+  const { format, symbol } = useCurrency();
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -238,13 +240,13 @@ export const InventoryPage: React.FC = () => {
                     Назва та Клас
                   </th>
                   <th className="px-6 py-4 font-semibold uppercase tracking-wider text-[11px]">
-                    Ціна продажу (₴)
+                    Ціна продажу ({symbol})
                   </th>
                   <th className="px-6 py-4 font-semibold uppercase tracking-wider text-[11px]">
-                    Собівартість (₴)
+                    Собівартість ({symbol})
                   </th>
                   <th className="px-6 py-4 font-semibold uppercase tracking-wider text-[11px]">
-                    Маржа (₴)
+                    Маржа ({symbol})
                   </th>
                   <th className="px-6 py-4 font-semibold uppercase tracking-wider text-[11px]">
                     Залишок
@@ -293,19 +295,13 @@ export const InventoryPage: React.FC = () => {
                         )}
                       </td>
                       <td className="px-6 py-3.5 font-medium text-gray-900">
-                        ₴{" "}
-                        {Number(product.askPrice).toLocaleString("uk-UA", {
-                          minimumFractionDigits: 2,
-                        })}
+                        {format(product.askPrice)}
                       </td>
                       <td className="px-6 py-3.5 text-gray-500">
-                        ₴{" "}
-                        {Number(product.bidPrice).toLocaleString("uk-UA", {
-                          minimumFractionDigits: 2,
-                        })}
+                        {format(product.bidPrice)}
                       </td>
                       <td className="px-6 py-3.5 text-emerald-600 font-medium">
-                        ₴ {(product.askPrice - product.bidPrice).toFixed(2)}
+                        {format(product.askPrice - product.bidPrice)}
                       </td>
                       <td className="px-6 py-4">
                         <span
@@ -435,7 +431,7 @@ export const InventoryPage: React.FC = () => {
                 <div className="grid grid-cols-3 gap-4">
                   <div>
                     <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-widest mb-1.5">
-                      Ціна продажу (₴)
+                      Ціна продажу ({symbol})
                     </label>
                     <input
                       type="number"
@@ -454,7 +450,7 @@ export const InventoryPage: React.FC = () => {
                   </div>
                   <div>
                     <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-widest mb-1.5">
-                      Собівартість (₴)
+                      Собівартість ({symbol})
                     </label>
                     <input
                       type="number"

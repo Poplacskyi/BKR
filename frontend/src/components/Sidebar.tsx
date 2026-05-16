@@ -9,6 +9,7 @@ import {
   LogOut,
   Hexagon,
 } from "lucide-react";
+import { CurrencySelector } from "./CurrencySelector";
 
 export const Sidebar: React.FC = () => {
   const navigate = useNavigate();
@@ -39,7 +40,7 @@ export const Sidebar: React.FC = () => {
         </span>
       </div>
 
-      {/* ── Навігація ── */}
+      {/* ── Навігація (Сторінки + Валюта) ── */}
       <nav className="flex-1 flex flex-col gap-2 p-4 overflow-y-auto overflow-x-hidden">
         {menuItems.map((item, index) => {
           const isActive =
@@ -65,9 +66,14 @@ export const Sidebar: React.FC = () => {
             </a>
           );
         })}
+
+        {/* ── Перемикач валют (mt-auto притискає його донизу списку) ── */}
+        <div className="mt-auto px-3 opacity-0 whitespace-nowrap transition-opacity duration-300 group-hover:opacity-100">
+          <CurrencySelector />
+        </div>
       </nav>
 
-      {/* ── Профіль / Вихід (Внизу) ── */}
+      {/* ── Профіль / Вихід (Окремий нижній блок) ── */}
       <div className="p-4 border-t border-gray-100 overflow-hidden">
         <button
           onClick={() => {

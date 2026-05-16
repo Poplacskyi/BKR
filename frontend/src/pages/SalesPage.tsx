@@ -14,6 +14,7 @@ import {
   Edit2,
 } from "lucide-react";
 import { Sidebar } from "../components/Sidebar";
+import { useCurrency } from "../context/CurrencyContext";
 import api from "../api/axios";
 
 // --- ІНТЕРФЕЙСИ ---
@@ -275,7 +276,7 @@ export const SalesPage = () => {
                   <TrendingUp size={14} /> Виторг сьогодні
                 </p>
                 <p className="text-2xl font-black text-emerald-800">
-                  {todaysRevenue.toLocaleString("uk-UA")} ₴
+                  {format(todaysRevenue)}
                 </p>
               </div>
               <div className="p-5">
@@ -323,7 +324,7 @@ export const SalesPage = () => {
                             Чек #{sale.id}
                           </p>
                           <p className="text-lg font-black text-gray-900 mt-0.5">
-                            {Number(sale.totalAmount).toLocaleString("uk-UA")} ₴
+                            {format(Number(sale.totalAmount))}
                           </p>
                         </div>
                         {/* ДОДАНО: Кнопка редагування */}
@@ -345,10 +346,7 @@ export const SalesPage = () => {
                             {item.productName}
                           </p>
                           <p className="text-gray-500 font-medium whitespace-nowrap">
-                            {(
-                              item.quantity * Number(item.priceAtSale)
-                            ).toLocaleString("uk-UA")}{" "}
-                            ₴
+                            {format(item.quantity * Number(item.priceAtSale))}
                           </p>
                         </div>
                       ))}
@@ -410,7 +408,7 @@ export const SalesPage = () => {
                         </div>
                         <div className="text-right">
                           <p className="text-sm font-bold text-gray-900">
-                            {Number(product.askPrice).toLocaleString()} ₴
+                            {format(product.askPrice)}
                           </p>
                           <p
                             className={`text-[10px] font-bold uppercase mt-0.5 ${product.stock > 0 ? "text-emerald-600" : "text-red-500"}`}
@@ -463,7 +461,7 @@ export const SalesPage = () => {
                               }
                               className="w-20 px-2 py-1 text-xs border border-gray-200 rounded bg-gray-50 focus:outline-none focus:border-emerald-500"
                             />
-                            <span className="text-xs text-gray-500">₴/шт</span>
+                            <span className="text-xs text-gray-500">{symbol}/шт</span>
                           </div>
                         </div>
                         <button
@@ -493,8 +491,7 @@ export const SalesPage = () => {
                           </button>
                         </div>
                         <p className="text-sm font-bold text-emerald-800">
-                          {(item.customPrice * item.quantity).toLocaleString()}{" "}
-                          ₴
+                          {format(item.customPrice * item.quantity)}
                         </p>
                       </div>
                     </div>
@@ -514,8 +511,7 @@ export const SalesPage = () => {
                   </p>
                 </div>
                 <h2 className="text-4xl font-black text-gray-900">
-                  {cartTotal.toLocaleString("uk-UA")}{" "}
-                  <span className="text-xl text-gray-400">₴</span>
+                  {format(cartTotal)}
                 </h2>
               </div>
 

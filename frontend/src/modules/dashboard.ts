@@ -49,7 +49,7 @@ export interface TopProduct {
   id: number;
   name: string;
   sales: number;
-  revenue: string;
+  revenue: number;
   stock: number;
   stockPercent: number;
 }
@@ -185,9 +185,7 @@ export function buildTopProducts(
       id: product.id,
       name: product.name,
       sales: product.quantity,
-      revenue: `₴ ${product.revenue.toLocaleString("uk-UA", {
-        minimumFractionDigits: 2,
-      })}`,
+      revenue: product.revenue,
       stock: productStockMap.get(product.id) ?? 0,
       stockPercent: Math.min(
         100,
@@ -206,7 +204,7 @@ export function buildTopProducts(
       id: product.id,
       name: product.name,
       sales: 0,
-      revenue: `₴ 0.00`,
+      revenue: 0,
       stock: product.stock,
       stockPercent: Math.min(100, Math.max(0, product.stock * 2)),
     }));

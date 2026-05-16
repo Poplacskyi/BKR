@@ -14,6 +14,8 @@ import { SaleItem } from './sales/sale-item.entity';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { StockHistoryModule } from './stock-history/stock-history.module';
 import { StockHistory } from './stock-history/stock-history.entity';
+import { SettingsModule } from './settings/settings.module';
+import { Settings } from './settings/settings.entity';
 
 @Module({
   imports: [
@@ -33,7 +35,7 @@ import { StockHistory } from './stock-history/stock-history.entity';
           return {
             type: 'postgres',
             url: dbUrl, // Використовуємо єдиний рядок підключення
-            entities: [User, Product, Sale, SaleItem, StockHistory],
+            entities: [User, Product, Sale, SaleItem, StockHistory, Settings],
             synchronize: true, // Увага: для продакшену зазвичай ставлять false, але для MVP залишаємо true
             // Розкоментуйте блок нижче, якщо Railway видаватиме помилку SSL:
             ssl: {
@@ -49,7 +51,7 @@ import { StockHistory } from './stock-history/stock-history.entity';
             username: 'postgres',
             password: 'root', // Ваш локальний пароль
             database: 'my_database', // Ваша локальна БД
-            entities: [User, Product, Sale, SaleItem, StockHistory],
+            entities: [User, Product, Sale, SaleItem, StockHistory, Settings],
             synchronize: true,
           };
         }
@@ -62,6 +64,7 @@ import { StockHistory } from './stock-history/stock-history.entity';
     SalesModule,
     AnalyticsModule,
     StockHistoryModule,
+    SettingsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
