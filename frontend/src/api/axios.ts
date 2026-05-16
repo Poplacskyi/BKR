@@ -9,7 +9,11 @@ const api = axios.create({
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem("token"); // або звідки ви берете токен
   if (token) {
-    config.headers.set("Authorization", `Bearer ${token}`);
+    const headers = config.headers as Record<string, string> | undefined;
+    config.headers = {
+      ...(headers || {}),
+      Authorization: `Bearer ${token}`,
+    } as any;
   }
   return config;
 });
