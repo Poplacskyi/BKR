@@ -461,7 +461,9 @@ export const SalesPage = () => {
                               }
                               className="w-20 px-2 py-1 text-xs border border-gray-200 rounded bg-gray-50 focus:outline-none focus:border-emerald-500"
                             />
-                            <span className="text-xs text-gray-500">{symbol}/шт</span>
+                            <span className="text-xs text-gray-500">
+                              {symbol}/шт
+                            </span>
                           </div>
                         </div>
                         <button
