@@ -57,6 +57,7 @@ export const SalesPage = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
+  const { format, symbol } = useCurrency();
 
   // ДОДАНО: Стан для режиму редагування
   const [editingSaleId, setEditingSaleId] = useState<number | null>(null);
